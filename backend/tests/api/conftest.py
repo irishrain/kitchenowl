@@ -51,6 +51,11 @@ def household_name():
 
 
 @pytest.fixture
+def item_name():
+    return "testitem"
+
+
+@pytest.fixture
 def onboarded_client(client, admin_username, admin_name, admin_password):
     onboard_data = {
         'username': admin_username,
@@ -104,3 +109,44 @@ def user_client_with_household(user_client, household_name):
     }
     response = user_client.post('/api/household', json=data)
     return user_client
+
+
+@pytest.fixture
+def household_id(user_client_with_household):
+    response = user_client_with_household.get('/api/household',)
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data) == 1
+    assert "id" in data[0]
+    return data[0]["id"]
+
+
+@pytest.fixture
+def shoppinglist_id(user_client_with_household, household_id):
+    response = user_client_with_household.get(
+        f'/api/household/{household_id}/shoppinglist',)
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data) == 1
+    assert "id" in data[0]
+    return data[0]["id"]
+
+
+@pytest.fixture
+def shoppinglist_id_with_item(user_client_with_household, shoppinglist_id, item_name):
+    data = {"name": item_name}
+    response = user_client_with_household.post(
+        f'/api/shoppinglist/{shoppinglist_id}/add-item-by-name', json=data)
+    assert response.status_code == 200
+    return shoppinglist_id
+
+
+@pytest.fixture
+def item_id(user_client_with_household, shoppinglist_id_with_item):
+    response = user_client_with_household.get(
+        f'/api/shoppinglist/{shoppinglist_id_with_item}/items')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data) == 1
+    assert "id" in data[0]
+    return data[0]["id"]
