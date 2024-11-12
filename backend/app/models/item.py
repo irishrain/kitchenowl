@@ -1,33 +1,37 @@
 from __future__ import annotations
-from typing import Self
+from typing import Self, List, TYPE_CHECKING
 
 from sqlalchemy import func
 from app import db
-from app.helpers import DbModelMixin, TimestampMixin, DbModelAuthorizeMixin
+from app.helpers import DbModelMixin, DbModelAuthorizeMixin
 from app.models.category import Category
 from app.util import description_merger
+from sqlalchemy.orm import Mapped
+
+if TYPE_CHECKING:
+    from app.models import *
 
 
-class Item(db.Model, DbModelMixin, TimestampMixin, DbModelAuthorizeMixin):
+class Item(db.Model, DbModelMixin, DbModelAuthorizeMixin):
     __tablename__ = "item"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128))
-    icon = db.Column(db.String(128), nullable=True)
-    category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
-    default = db.Column(db.Boolean, default=False)
-    default_key = db.Column(db.String(128))
-    household_id = db.Column(
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(128))
+    icon: Mapped[str] = db.Column(db.String(128), nullable=True)
+    category_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("category.id"))
+    default: Mapped[bool] = db.Column(db.Boolean, default=False)
+    default_key: Mapped[str] = db.Column(db.String(128))
+    household_id: Mapped[int] = db.Column(
         db.Integer, db.ForeignKey("household.id"), nullable=False, index=True
     )
 
-    household = db.relationship("Household", uselist=False)
-    category = db.relationship("Category")
+    household: Mapped["Household"] = db.relationship("Household", uselist=False)
+    category: Mapped["Category"] = db.relationship("Category")
 
-    recipes = db.relationship(
+    recipes: Mapped[List["RecipeItems"]] = db.relationship(
         "RecipeItems", back_populates="item", cascade="all, delete-orphan"
     )
-    shoppinglists = db.relationship(
+    shoppinglists: Mapped[List["ShoppinglistItems"]] = db.relationship(
         "ShoppinglistItems", back_populates="item", cascade="all, delete-orphan"
     )
 
@@ -159,6 +163,14 @@ class Item(db.Model, DbModelMixin, TimestampMixin, DbModelAuthorizeMixin):
         return cls.query.filter(cls.id == id).first()
 
     @classmethod
+    def find_name_starts_with(cls, household_id: int, starts_with: str) -> Self:
+        starts_with = starts_with.strip()
+        return cls.query.filter(
+            cls.household_id == household_id,
+            func.lower(cls.name).like(func.lower(starts_with) + "%"),
+        ).first()
+
+    @classmethod
     def search_name(cls, name: str, household_id: int) -> list[Self]:
         item_count = 11
         if "postgresql" in db.engine.name:
@@ -199,7 +211,7 @@ class Item(db.Model, DbModelMixin, TimestampMixin, DbModelAuthorizeMixin):
         contains = "%{0}%".format(name)
         one_error = []
         for index in range(len(name)):
-            name_one_error = name[:index] + "_" + name[index + 1 :]
+            name_one_error = name[:index] + "_" + name[index + 1:]
             one_error.append("%{0}%".format(name_one_error))
 
         for looking_for in [starts_with, contains] + one_error:

@@ -104,15 +104,12 @@ class _PlannerPageState extends State<PlannerPage> {
                             ),
                             if (state.recipePlans.isNotEmpty &&
                                 household.defaultShoppingList != null)
-                              Tooltip(
-                                message: AppLocalizations.of(context)!.itemsAdd,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(50),
-                                  child: const Icon(
-                                    Icons.add_shopping_cart_rounded,
-                                  ),
-                                  onTap: () =>
-                                      _openItemSelectionPage(context, cubit),
+                              IconButton(
+                                tooltip: AppLocalizations.of(context)!.itemsAdd,
+                                onPressed: () =>
+                                    _openItemSelectionPage(context, cubit),
+                                icon: const Icon(
+                                  Icons.add_shopping_cart_rounded,
                                 ),
                               ),
                           ],
@@ -123,14 +120,17 @@ class _PlannerPageState extends State<PlannerPage> {
                   if (state.recipePlans.isEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             const Icon(Icons.no_food_rounded),
                             const SizedBox(height: 16),
-                            Text(AppLocalizations.of(context)!.plannerEmpty),
+                            Text(
+                              AppLocalizations.of(context)!.plannerEmpty,
+                              textAlign: TextAlign.center,
+                            ),
                           ],
                         ),
                       ),
@@ -283,13 +283,10 @@ class _PlannerPageState extends State<PlannerPage> {
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
                             ),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxHeight: 40),
-                              child: LoadingIconButton(
-                                onPressed: cubit.refreshSuggestions,
-                                icon: const Icon(Icons.refresh),
-                                tooltip: AppLocalizations.of(context)!.refresh,
-                              ),
+                            LoadingIconButton(
+                              onPressed: cubit.refreshSuggestions,
+                              icon: const Icon(Icons.refresh),
+                              tooltip: AppLocalizations.of(context)!.refresh,
                             ),
                           ],
                         ),
@@ -368,8 +365,11 @@ class _PlannerPageState extends State<PlannerPage> {
           selectText: AppLocalizations.of(ctx)!.addNumberIngredients,
           plans: (cubit.state as LoadedPlannerCubitState).recipePlans,
           title: AppLocalizations.of(ctx)!.addItemTitle,
-          shoppingLists:
-              BlocProvider.of<ShoppinglistCubit>(context).state.shoppinglists,
+          shoppingLists: BlocProvider.of<ShoppinglistCubit>(context)
+              .state
+              .shoppinglists
+              .values
+              .toList(),
           handleResult: (list, res) async {
             list ??= BlocProvider.of<HouseholdCubit>(context)
                 .state

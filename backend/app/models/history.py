@@ -1,11 +1,14 @@
-from datetime import datetime
-from typing import Self
+from typing import Self, TYPE_CHECKING
 from app import db
-from app.helpers import DbModelMixin, TimestampMixin
+from app.helpers import DbModelMixin
 from .shoppinglist import ShoppinglistItems
 from sqlalchemy import func
+from sqlalchemy.orm import Mapped
 
 import enum
+
+if TYPE_CHECKING:
+    from app.models import Item, Shoppinglist
 
 
 class Status(enum.Enum):
@@ -13,21 +16,21 @@ class Status(enum.Enum):
     DROPPED = -1
 
 
-class History(db.Model, DbModelMixin, TimestampMixin):
+class History(db.Model, DbModelMixin):
     __tablename__ = "history"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
 
-    shoppinglist_id = db.Column(db.Integer, db.ForeignKey("shoppinglist.id"))
-    item_id = db.Column(db.Integer, db.ForeignKey("item.id"))
+    shoppinglist_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("shoppinglist.id"))
+    item_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("item.id"))
 
-    item = db.relationship("Item", uselist=False, back_populates="history")
-    shoppinglist = db.relationship(
+    item: Mapped["Item"] = db.relationship("Item", uselist=False, back_populates="history")
+    shoppinglist: Mapped["Shoppinglist"] = db.relationship(
         "Shoppinglist", uselist=False, back_populates="history"
     )
 
-    status = db.Column(db.Enum(Status))
-    description = db.Column("description", db.String())
+    status: Mapped[Status] = db.Column(db.Enum(Status))
+    description: Mapped[str] = db.Column("description", db.String())
 
     @classmethod
     def create_added_without_save(cls, shoppinglist, item, description="") -> Self:
@@ -81,19 +84,36 @@ class History(db.Model, DbModelMixin, TimestampMixin):
 
     @classmethod
     def get_recent(cls, shoppinglist_id: int, limit: int = 9) -> list[Self]:
-        sq = db.session.query(ShoppinglistItems.item_id).subquery().select()
-        sq2 = (
-            db.session.query(func.max(cls.id))
-            .filter(cls.status == Status.DROPPED)
-            .filter(cls.item_id.notin_(sq))
-            .group_by(cls.item_id)
-            .join(cls.item)
-            .subquery()
-            .select()
-        )
-        return (
-            cls.query.filter(cls.shoppinglist_id == shoppinglist_id)
-            .filter(cls.id.in_(sq2))
-            .order_by(cls.id.desc())
-            .limit(limit)
-        )
+        if "postgresql" in db.engine.name:
+            sq = db.session.query(ShoppinglistItems.item_id).subquery().select()
+            sq2 = (
+                cls.query.filter(
+                    cls.shoppinglist_id == shoppinglist_id,
+                    cls.status == Status.DROPPED,
+                    cls.item_id.notin_(sq),
+                )
+                .distinct(cls.item_id)
+                .order_by(cls.item_id, cls.created_at.desc())
+                .limit(limit)
+                .subquery()
+            )
+            alias = db.aliased(cls, sq2)
+            q = db.session.query(alias).order_by(alias.created_at.desc())
+            return q.all()
+        else:
+            sq = db.session.query(ShoppinglistItems.item_id).subquery().select()
+            sq2 = (
+                db.session.query(func.max(cls.id))
+                .filter(cls.status == Status.DROPPED)
+                .filter(cls.item_id.notin_(sq))
+                .group_by(cls.item_id)
+                .join(cls.item)
+                .subquery()
+                .select()
+            )
+            return (
+                cls.query.filter(cls.shoppinglist_id == shoppinglist_id)
+                .filter(cls.id.in_(sq2))
+                .order_by(cls.created_at.desc(), cls.item_id)
+                .limit(limit)
+            )

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:kitchenowl/cubits/household_cubit.dart';
 import 'package:kitchenowl/cubits/settings_cubit.dart';
 import 'package:kitchenowl/enums/update_enum.dart';
 import 'package:kitchenowl/kitchenowl.dart';
@@ -30,7 +31,7 @@ class StringItemMatch extends StatelessWidget {
     return FractionallySizedBox(
       widthFactor: 1 /
           DynamicStyling.itemCrossAxisCount(
-            MediaQuery.of(context).size.width - 32,
+            MediaQuery.sizeOf(context).width - 32,
             context.read<SettingsCubit>().state.gridSize,
           ),
       alignment: Alignment.topCenter,
@@ -74,7 +75,7 @@ class StringItemMatch extends StatelessWidget {
                         height: 64,
                         child: OutlinedButton(
                           style: const ButtonStyle(
-                            padding: MaterialStatePropertyAll(EdgeInsets.zero),
+                            padding: WidgetStatePropertyAll(EdgeInsets.zero),
                           ),
                           onPressed: () => _onPressed(context),
                           child: const Icon(Icons.add),
@@ -126,8 +127,11 @@ class StringItemMatch extends StatelessWidget {
     final res = await Navigator.of(context, rootNavigator: true)
         .push<UpdateValue<RecipeItem>>(
       MaterialPageRoute(
-        builder: (BuildContext context) => ItemPage(
-          item: item!,
+        builder: (BuildContext ctx) => BlocProvider.value(
+          value: context.read<HouseholdCubit>(),
+          child: ItemPage(
+            item: item!,
+          ),
         ),
       ),
     );

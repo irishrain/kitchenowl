@@ -156,13 +156,9 @@ class RecipeCard extends StatelessWidget {
                             if (onAddToDate != null)
                               LoadingElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  // Foreground color
-                                  // ignore: deprecated_member_use
-                                  onPrimary:
+                                  foregroundColor:
                                       Theme.of(context).colorScheme.onPrimary,
-                                  // Background color
-                                  // ignore: deprecated_member_use
-                                  primary:
+                                  backgroundColor:
                                       Theme.of(context).colorScheme.primary,
                                   padding: EdgeInsets.zero,
                                 ).copyWith(
@@ -172,24 +168,43 @@ class RecipeCard extends StatelessWidget {
                                 child: const Icon(Icons.calendar_month_rounded),
                               ),
                             const SizedBox(width: 8),
-                            LoadingElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                // Foreground color
-                                // ignore: deprecated_member_use
-                                onPrimary:
-                                    Theme.of(context).colorScheme.onPrimary,
-                                // Background color
-                                // ignore: deprecated_member_use
-                                primary: Theme.of(context).colorScheme.primary,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 16),
-                              ).copyWith(
-                                elevation: ButtonStyleButton.allOrNull(0.0),
-                              ),
-                              onPressed: onLongPressed,
-                              child: Text(
-                                AppLocalizations.of(context)!
-                                    .addRecipeToPlannerShort,
+                            Flexible(
+                              child: LoadingElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                ).copyWith(
+                                  elevation: ButtonStyleButton.allOrNull(0.0),
+                                ),
+                                onPressed: onLongPressed,
+                                child: LayoutBuilder(builder:
+                                    (BuildContext context,
+                                        BoxConstraints size) {
+                                  final TextPainter painter = TextPainter(
+                                    maxLines: 1,
+                                    textAlign: TextAlign.left,
+                                    textDirection: TextDirection.ltr,
+                                    text: TextSpan(
+                                      text: AppLocalizations.of(context)!
+                                          .addRecipeToPlannerShort,
+                                    ),
+                                  );
+
+                                  painter.layout(maxWidth: size.maxWidth);
+
+                                  return Text(
+                                    painter.didExceedMaxLines
+                                        ? AppLocalizations.of(context)!.add
+                                        : AppLocalizations.of(context)!
+                                            .addRecipeToPlannerShort,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  );
+                                }),
                               ),
                             ),
                           ],

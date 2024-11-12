@@ -33,19 +33,20 @@ import os
 
 
 MIN_FRONTEND_VERSION = 71
-BACKEND_VERSION = 93
+BACKEND_VERSION = 98
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(APP_DIR)
 
 STORAGE_PATH = os.getenv("STORAGE_PATH", PROJECT_DIR)
 UPLOAD_FOLDER = STORAGE_PATH + "/upload"
-ALLOWED_FILE_EXTENSIONS = {"txt", "pdf", "png", "jpg", "jpeg", "gif"}
+ALLOWED_FILE_EXTENSIONS = {"txt", "pdf", "png", "jpg", "jpeg", "gif", "webp", "jxl"}
 
 FRONT_URL = os.getenv("FRONT_URL")
 
 PRIVACY_POLICY_URL = os.getenv("PRIVACY_POLICY_URL")
 OPEN_REGISTRATION = os.getenv("OPEN_REGISTRATION", "False").lower() == "true"
+DISABLE_USERNAME_PASSWORD_LOGIN = os.getenv("DISABLE_USERNAME_PASSWORD_LOGIN", "False").lower() == "true"
 EMAIL_MANDATORY = os.getenv("EMAIL_MANDATORY", "False").lower() == "true"
 
 COLLECT_METRICS = os.getenv("COLLECT_METRICS", "False").lower() == "true"
@@ -55,12 +56,13 @@ DB_URL = URL.create(
     username=os.getenv("DB_USER"),
     password=os.getenv("DB_PASSWORD"),
     host=os.getenv("DB_HOST"),
+    port=os.getenv("DB_PORT"),
     database=os.getenv("DB_NAME", STORAGE_PATH + "/database.db"),
 )
 MESSAGE_BROKER = os.getenv("MESSAGE_BROKER")
 
 JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
-JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
+JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=int(os.getenv("JWT_REFRESH_TOKEN_EXPIRES", "30")))
 
 OIDC_CLIENT_ID = os.getenv("OIDC_CLIENT_ID")
 OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET")
@@ -75,24 +77,33 @@ APPLE_CLIENT_SECRET = os.getenv("APPLE_CLIENT_SECRET")
 SUPPORTED_LANGUAGES = {
     "en": "English",
     "en_AU": "Australian English",
+    "ar": "اَلْعَرَبِيَّةُ",
+    "bg": "български език",
+    "bn": "বাংলা",
+    "ca": "Catalan",
     "cs": "čeština",
     "da": "Dansk",
     "de": "Deutsch",
+    "de_CH": "Deutsch (Schweiz)",
     "el": "Ελληνικά",
     "es": "Español",
     "fi": "Suomi",
     "fr": "Français",
+    "he": "עִבְרִית‎",
     "hu": "Magyar nyelv",
     "id": "Bahasa Indonesia",
     "it": "Italiano",
+    "ko": "한국어",
+    "lt": "Lietuvių kalba",
     "nb_NO": "Bokmål",
     "nl": "Nederlands",
     "pl": "Polski",
     "pt": "Português",
     "pt_BR": "Português Brasileiro",
-    "ru": "русский язык",
+    "ru": "Русский язык",
     "sv": "Svenska",
     "tr": "Türkçe",
+    "uk": "Українська",
     "zh_Hans": "简化字",
 }
 

@@ -43,7 +43,7 @@ class _ExpensePageState extends State<ExpensePage> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (!didPop) Navigator.of(context).pop(cubit.state.updateState);
       },
       child: BlocBuilder<ExpenseCubit, ExpenseCubitState>(
@@ -55,25 +55,20 @@ class _ExpensePageState extends State<ExpensePage> {
               constraints: const BoxConstraints.expand(width: 1600),
               child: CustomScrollView(
                 slivers: [
-                  SliverAppBar(
-                    flexibleSpace: FlexibleImageSpaceBar(
-                      title: state.expense.name,
-                      imageUrl: state.expense.image,
-                      imageHash: state.expense.imageHash,
-                    ),
-                    expandedHeight: state.expense.image?.isNotEmpty ?? false
-                        ? (MediaQuery.of(context).size.height / 3.5)
-                            .clamp(160, 310)
-                        : null,
-                    pinned: true,
-                    leading: BackButton(
-                      onPressed: () =>
-                          Navigator.of(context).pop(cubit.state.updateState),
-                    ),
-                    actions: [
+                  SliverImageAppBar(
+                    title: state.expense.name,
+                    imageUrl: state.expense.image,
+                    imageHash: state.expense.imageHash,
+                    popValue: () => cubit.state.updateState,
+                    actions: (isCollapsed) => [
                       if (!App.isOffline)
                         LoadingIconButton(
                           tooltip: AppLocalizations.of(context)!.expenseEdit,
+                          variant: state.expense.image == null ||
+                                  state.expense.image!.isEmpty ||
+                                  isCollapsed
+                              ? LoadingIconButtonVariant.standard
+                              : LoadingIconButtonVariant.filledTonal,
                           onPressed: () async {
                             final res = await Navigator.of(context)
                                 .push<UpdateEnum>(MaterialPageRoute(
@@ -178,7 +173,7 @@ class _ExpensePageState extends State<ExpensePage> {
                   ),
                   SliverToBoxAdapter(
                     child:
-                        SizedBox(height: MediaQuery.of(context).padding.bottom),
+                        SizedBox(height: MediaQuery.paddingOf(context).bottom),
                   ),
                 ],
               ),

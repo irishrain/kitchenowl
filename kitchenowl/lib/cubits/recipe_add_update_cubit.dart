@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kitchenowl/helpers/named_bytearray.dart';
 import 'package:kitchenowl/models/household.dart';
 import 'package:kitchenowl/models/item.dart';
@@ -8,8 +7,9 @@ import 'package:kitchenowl/models/tag.dart';
 import 'package:kitchenowl/services/api/api_service.dart';
 import 'package:kitchenowl/services/transaction_handler.dart';
 import 'package:kitchenowl/services/transactions/tag.dart';
+import 'package:replay_bloc/replay_bloc.dart';
 
-class AddUpdateRecipeCubit extends Cubit<AddUpdateRecipeState> {
+class AddUpdateRecipeCubit extends ReplayCubit<AddUpdateRecipeState> {
   final Household household;
   final Recipe recipe;
 
@@ -28,6 +28,7 @@ class AddUpdateRecipeCubit extends Cubit<AddUpdateRecipeState> {
           items: recipe.items,
           selectedTags: recipe.tags,
           tags: recipe.tags,
+          public: recipe.public,
           hasChanges: hasChanges ?? false,
         )) {
     getTags();
@@ -37,6 +38,7 @@ class AddUpdateRecipeCubit extends Cubit<AddUpdateRecipeState> {
     final tags = await TransactionHandler.getInstance()
         .runTransaction(TransactionTagGetAll(household: household));
     emit(state.copyWith(tags: tags));
+    this.clearHistory();
   }
 
   Future<Recipe?> saveRecipe() async {
@@ -62,6 +64,7 @@ class AddUpdateRecipeCubit extends Cubit<AddUpdateRecipeState> {
             image: image ?? recipe.image,
             items: _state.items,
             tags: _state.selectedTags,
+            public: _state.public,
           ),
         );
       } else {
@@ -76,9 +79,11 @@ class AddUpdateRecipeCubit extends Cubit<AddUpdateRecipeState> {
           image: image,
           items: _state.items,
           tags: _state.selectedTags,
+          public: _state.public,
         ));
       }
       emit(_state.copyWith(hasChanges: false));
+      this.clearHistory();
     }
 
     return null;
@@ -129,6 +134,10 @@ class AddUpdateRecipeCubit extends Cubit<AddUpdateRecipeState> {
 
   void setSource(String source) {
     emit(state.copyWith(source: source, hasChanges: true));
+  }
+
+  void setPublic(bool public) {
+    emit(state.copyWith(public: public, hasChanges: true));
   }
 
   void selectTag(Tag tag, bool selected) {
@@ -201,6 +210,7 @@ class AddUpdateRecipeState extends Equatable {
   final int yields;
   final String source;
   final NamedByteArray? image;
+  final bool public;
   final List<RecipeItem> items;
   final Set<Tag> tags;
   final Set<Tag> selectedTags;
@@ -215,6 +225,7 @@ class AddUpdateRecipeState extends Equatable {
     this.yields = 0,
     this.source = '',
     this.image,
+    this.public = false,
     this.items = const [],
     this.tags = const {},
     this.selectedTags = const {},
@@ -230,6 +241,7 @@ class AddUpdateRecipeState extends Equatable {
     int? yields,
     String? source,
     NamedByteArray? image,
+    bool? public,
     List<RecipeItem>? items,
     Set<Tag>? tags,
     Set<Tag>? selectedTags,
@@ -246,6 +258,7 @@ class AddUpdateRecipeState extends Equatable {
         image: image ?? this.image,
         items: items ?? this.items,
         tags: tags ?? this.tags,
+        public: public ?? this.public,
         selectedTags: selectedTags ?? this.selectedTags,
         hasChanges: hasChanges ?? this.hasChanges,
       );
@@ -264,6 +277,7 @@ class AddUpdateRecipeState extends Equatable {
         image,
         items,
         tags,
+        public,
         selectedTags,
         hasChanges,
       ];

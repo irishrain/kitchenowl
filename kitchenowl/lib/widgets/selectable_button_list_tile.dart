@@ -8,6 +8,7 @@ class SelectableButtonListTile extends StatefulWidget {
   final bool raised;
   final void Function()? onPressed;
   final void Function()? onLongPressed;
+  final Widget? extraOption;
 
   const SelectableButtonListTile({
     super.key,
@@ -18,6 +19,7 @@ class SelectableButtonListTile extends StatefulWidget {
     this.onPressed,
     this.onLongPressed,
     this.raised = true,
+    this.extraOption,
   });
 
   @override
@@ -35,7 +37,7 @@ class _SelectableButtonListTileState extends State<SelectableButtonListTile> {
       elevation: !widget.raised ? 0 : null,
       color: !widget.raised
           ? ElevationOverlay.applySurfaceTint(
-              Theme.of(context).colorScheme.background,
+              Theme.of(context).colorScheme.surface,
               Theme.of(context).colorScheme.surfaceTint,
               1.5,
             )
@@ -100,15 +102,17 @@ class _SelectableButtonListTileState extends State<SelectableButtonListTile> {
           onTap: widget.onPressed,
           onLongPress: widget.onLongPressed,
           contentPadding: const EdgeInsets.only(left: 16, right: 8),
-          trailing: (widget.onLongPressed != null && mouseHover)
-              ? IconButton(
-                  onPressed: widget.onLongPressed,
-                  color: widget.selected
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : null,
-                  icon: const Icon(Icons.more_horiz_rounded),
-                )
-              : null,
+          trailing: (widget.extraOption != null && mouseHover)
+              ? widget.extraOption
+              : (widget.onLongPressed != null && mouseHover)
+                  ? IconButton(
+                      onPressed: widget.onLongPressed,
+                      color: widget.selected
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : null,
+                      icon: const Icon(Icons.more_horiz_rounded),
+                    )
+                  : null,
         ),
       ),
     );

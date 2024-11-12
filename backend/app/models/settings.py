@@ -1,12 +1,16 @@
-from typing import Self
+from typing import Self, TYPE_CHECKING
 from app import db
-from app.helpers import DbModelMixin, TimestampMixin
+from app.helpers import DbModelMixin
+from sqlalchemy.orm import Mapped
+
+if TYPE_CHECKING:
+    from app.models import *
 
 
-class Settings(db.Model, DbModelMixin, TimestampMixin):
+class Settings(db.Model, DbModelMixin):
     __tablename__ = "settings"
 
-    id = db.Column(db.Integer, primary_key=True, nullable=False)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True, nullable=False)
 
     @classmethod
     def get(cls) -> Self:

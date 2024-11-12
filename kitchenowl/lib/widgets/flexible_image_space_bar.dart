@@ -6,37 +6,36 @@ import 'package:transparent_image/transparent_image.dart';
 
 class FlexibleImageSpaceBar extends StatelessWidget {
   final String title;
+  final int actionCount;
   final String imageUrl;
   final String? imageHash;
+  final bool isCollapsed;
 
   const FlexibleImageSpaceBar({
     super.key,
     required this.title,
+    this.isCollapsed = false,
     String? imageUrl,
     this.imageHash,
+    this.actionCount = 1,
   }) : imageUrl = imageUrl ?? "";
 
   @override
   Widget build(BuildContext context) {
     return FlexibleSpaceBar(
-      titlePadding: const EdgeInsetsDirectional.only(
+      titlePadding: EdgeInsetsDirectional.only(
         start: 60,
         bottom: 16,
-        end: 36,
+        end: 16 + actionCount * 40,
       ),
-      title: LayoutBuilder(builder: (context, constraints) {
-        final isCollapsed = constraints.biggest.height <=
-            MediaQuery.of(context).padding.top + kToolbarHeight - 16 + 32;
-
-        return Text(
-          title,
-          maxLines: isCollapsed ? 1 : 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onBackground,
-          ),
-        );
-      }),
+      title: Text(
+        title,
+        maxLines: isCollapsed ? 1 : 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
       background: imageUrl.isNotEmpty
           ? GestureDetector(
               onTap: () => Navigator.of(context, rootNavigator: true)
@@ -84,7 +83,7 @@ class FlexibleImageSpaceBar extends StatelessWidget {
                   image: getImageProvider(
                     context,
                     imageUrl,
-                    maxWidth: MediaQuery.of(context).size.width.toInt(),
+                    maxWidth: MediaQuery.sizeOf(context).width.toInt(),
                   ),
                   fit: BoxFit.cover,
                 ),

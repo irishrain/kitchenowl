@@ -1,18 +1,22 @@
-from typing import Self
+from typing import Self, List, TYPE_CHECKING
 from app import db
-from app.helpers import DbModelMixin, TimestampMixin, DbModelAuthorizeMixin
+from app.helpers import DbModelMixin, DbModelAuthorizeMixin
+from sqlalchemy.orm import Mapped
+
+if TYPE_CHECKING:
+    from app.models import *
 
 
-class Tag(db.Model, DbModelMixin, TimestampMixin, DbModelAuthorizeMixin):
+class Tag(db.Model, DbModelMixin, DbModelAuthorizeMixin):
     __tablename__ = "tag"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128))
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
+    name: Mapped[str] = db.Column(db.String(128))
 
-    household_id = db.Column(db.Integer, db.ForeignKey("household.id"), nullable=False)
+    household_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("household.id"), nullable=False)
 
-    household = db.relationship("Household", uselist=False)
-    recipes = db.relationship(
+    household: Mapped["Household"] = db.relationship("Household", uselist=False)
+    recipes: Mapped[List["RecipeTags"]] = db.relationship(
         "RecipeTags", back_populates="tag", cascade="all, delete-orphan"
     )
 

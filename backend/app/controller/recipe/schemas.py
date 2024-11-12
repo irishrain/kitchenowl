@@ -15,6 +15,7 @@ class AddRecipe(Schema):
     yields = fields.Integer(validate=lambda a: a >= 0)
     source = fields.String()
     photo = fields.String()
+    public = fields.Bool()
     items = fields.List(fields.Nested(RecipeItem()))
     tags = fields.List(fields.String())
 
@@ -33,6 +34,7 @@ class UpdateRecipe(Schema):
     yields = fields.Integer(validate=lambda a: a >= 0)
     source = fields.String()
     photo = fields.String()
+    public = fields.Bool()
     items = fields.List(fields.Nested(RecipeItem()))
     tags = fields.List(fields.String())
 
@@ -40,7 +42,7 @@ class UpdateRecipe(Schema):
 class SearchByNameRequest(Schema):
     query = fields.String(required=True, validate=lambda a: a and not a.isspace())
     only_ids = fields.Boolean(
-        default=False,
+        load_default=False,
     )
 
 

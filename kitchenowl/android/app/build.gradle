@@ -38,21 +38,13 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
-
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
-    }
-
     defaultConfig {
         applicationId "com.tombursch.kitchenowl"
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
-        resConfigs 'en', 'be', 'ca', 'ca_valencia', 'cs', 'da', 'de', 'el', 'es', 'fi', 'fr', 'hu', 'id', 'it', 'nb', 'nl', 'pa', 'pl', 'pt', 'pt_BR', 'ro', 'ru', 'sv', 'tr', 'vi', 'zh'
+        resConfigs 'en', 'ar', 'be', 'bg', 'ca', 'ca_valencia', 'cs', 'da', 'de', 'de_CH', 'el', 'es', 'fi', 'fr', 'he', 'hi', 'hu', 'id', 'it', 'ko', 'lt', 'nb', 'nl', 'pa', 'pl', 'pt', 'pt_BR', 'ro', 'ru', 'sv', 'tr', 'uk', 'vi', 'zh'
     }
 
     signingConfigs {
@@ -74,5 +66,3 @@ android {
 flutter {
     source '../..'
 }
-
-dependencies {}

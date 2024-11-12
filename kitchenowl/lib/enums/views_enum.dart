@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kitchenowl/app.dart';
+import 'package:kitchenowl/cubits/household_cubit.dart';
 import 'package:kitchenowl/kitchenowl.dart';
 import 'package:kitchenowl/models/household.dart';
 import 'package:kitchenowl/widgets/expense_create_fab.dart';
@@ -11,7 +13,7 @@ enum ViewsEnum {
   recipes,
   planner,
   balances,
-  profile;
+  more;
 
   String toLocalizedString(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
@@ -21,17 +23,54 @@ enum ViewsEnum {
       loc.recipes,
       loc.mealPlanner,
       loc.balances,
-      loc.profile,
+      loc.more,
     ][index];
+  }
+
+  String toLocalizedShortString(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
+    return [
+      loc.list,
+      loc.recipes,
+      loc.planner,
+      loc.balances,
+      loc.more,
+    ][index];
+  }
+
+  Widget? toIconWidget(BuildContext context) {
+    if (this == ViewsEnum.more) {
+      Household? household = context.read<HouseholdCubit>().state.household;
+      if (!App.isOffline && household.image != null)
+        return CircleAvatar(
+          radius: 16,
+          foregroundImage: getImageProvider(
+            context,
+            household.image!,
+          ),
+        );
+    }
+    return null;
   }
 
   IconData toIcon(BuildContext context) {
     return [
       Icons.shopping_bag_outlined,
-      Icons.receipt,
+      Icons.receipt_outlined,
+      Icons.calendar_today_outlined,
+      Icons.account_balance_outlined,
+      App.isOffline ? Icons.cloud_off_rounded : Icons.house_rounded,
+    ][index];
+  }
+
+  IconData toSelectedIcon(BuildContext context) {
+    return [
+      Icons.shopping_bag_rounded,
+      Icons.receipt_rounded,
       Icons.calendar_today_rounded,
       Icons.account_balance_rounded,
-      App.isOffline ? Icons.cloud_off_rounded : Icons.person_rounded,
+      App.isOffline ? Icons.cloud_off_rounded : Icons.house_rounded,
     ][index];
   }
 
@@ -90,7 +129,8 @@ enum ViewsEnum {
       case 'balances':
         return ViewsEnum.balances;
       case 'profile':
-        return ViewsEnum.profile;
+      case 'more':
+        return ViewsEnum.more;
       default:
         return null;
     }

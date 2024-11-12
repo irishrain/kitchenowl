@@ -6,39 +6,32 @@ import 'package:kitchenowl/app.dart';
 import 'package:kitchenowl/cubits/household_cubit.dart';
 import 'package:kitchenowl/cubits/item_edit_cubit.dart';
 import 'package:kitchenowl/enums/update_enum.dart';
+import 'package:kitchenowl/helpers/build_context_extension.dart';
 import 'package:kitchenowl/models/category.dart';
-import 'package:kitchenowl/models/household.dart';
 import 'package:kitchenowl/models/item.dart';
 import 'package:kitchenowl/kitchenowl.dart';
 import 'package:kitchenowl/models/shoppinglist.dart';
 import 'package:kitchenowl/models/update_value.dart';
-import 'package:kitchenowl/pages/icon_selection_page.dart';
-import 'package:kitchenowl/pages/item_search_page.dart';
+import 'package:kitchenowl/widgets/item_popup_menu_button.dart';
+import 'package:kitchenowl/widgets/item_wrap_menu.dart';
 import 'package:kitchenowl/widgets/recipe_item.dart';
 
 class ItemPage<T extends Item> extends StatefulWidget {
   final T item;
-  final Household? household;
   final ShoppingList? shoppingList;
   final List<Category> categories;
+  final bool advancedView;
 
   const ItemPage({
     super.key,
     required this.item,
     this.shoppingList,
-    this.household,
     this.categories = const [],
+    this.advancedView = false,
   });
 
   @override
   _ItemPageState createState() => _ItemPageState<T>();
-}
-
-enum _ItemAction {
-  changeIcon,
-  rename,
-  merge,
-  delete;
 }
 
 class _ItemPageState<T extends Item> extends State<ItemPage<T>> {
@@ -53,7 +46,7 @@ class _ItemPageState<T extends Item> extends State<ItemPage<T>> {
       descController.text = (widget.item as ItemWithDescription).description;
     }
     cubit = ItemEditCubit<T>(
-      household: widget.household,
+      household: context.read<HouseholdCubit>().state.household,
       item: widget.item,
       shoppingList: widget.shoppingList,
     );
@@ -74,7 +67,7 @@ class _ItemPageState<T extends Item> extends State<ItemPage<T>> {
           prev.hasChanged(widget.item) != curr.hasChanged(widget.item),
       builder: (context, state) => PopScope(
         canPop: !state.hasChanged(widget.item),
-        onPopInvoked: (didPop) async {
+        onPopInvokedWithResult: (didPop, result) async {
           if (!didPop && state.hasChanged(widget.item)) {
             await cubit.saveItem();
             if (mounted) {
@@ -91,30 +84,19 @@ class _ItemPageState<T extends Item> extends State<ItemPage<T>> {
               builder: (context, state) => Text(state.name),
             ),
             actions: [
-              if (widget.item is! RecipeItem && !App.isOffline)
-                PopupMenuButton(
-                  itemBuilder: (BuildContext context) =>
-                      <PopupMenuEntry<_ItemAction>>[
-                    PopupMenuItem<_ItemAction>(
-                      value: _ItemAction.changeIcon,
-                      child: Text(AppLocalizations.of(context)!.changeIcon),
-                    ),
-                    PopupMenuItem<_ItemAction>(
-                      value: _ItemAction.rename,
-                      child: Text(AppLocalizations.of(context)!.rename),
-                    ),
-                    const PopupMenuDivider(),
-                    if (widget.household != null)
-                      PopupMenuItem<_ItemAction>(
-                        value: _ItemAction.merge,
-                        child: Text(AppLocalizations.of(context)!.merge),
-                      ),
-                    PopupMenuItem<_ItemAction>(
-                      value: _ItemAction.delete,
-                      child: Text(AppLocalizations.of(context)!.delete),
-                    ),
-                  ],
-                  onSelected: _handleItemAction,
+              if (!App.isOffline)
+                ItemPopupMenuButton(
+                  item: cubit.item,
+                  household: context.read<HouseholdCubit>().state.household,
+                  setIcon: cubit.setIcon,
+                  setName: cubit.setName,
+                  mergeItem: cubit.mergeItem,
+                  deleteItem: () async {
+                    await cubit.deleteItem();
+                    if (!mounted) return;
+                    Navigator.of(context)
+                        .pop(const UpdateValue<Item>(UpdateEnum.deleted));
+                  },
                 ),
             ],
           ),
@@ -160,7 +142,7 @@ class _ItemPageState<T extends Item> extends State<ItemPage<T>> {
                     SliverPadding(
                       padding: EdgeInsets.only(
                         top: (widget.item is ItemWithDescription) ? 0 : 16,
-                        bottom: 16,
+                        bottom: (widget.advancedView) ? 8 : 16,
                         left: 16,
                         right: 16,
                       ),
@@ -184,17 +166,17 @@ class _ItemPageState<T extends Item> extends State<ItemPage<T>> {
                                       value: state.category,
                                       isExpanded: true,
                                       items: [
-                                        for (final e in widget.categories)
-                                          DropdownMenuItem(
-                                            value: e,
-                                            child: Text(e.name),
-                                          ),
                                         DropdownMenuItem(
                                           value: null,
                                           child: Text(
                                             AppLocalizations.of(context)!.none,
                                           ),
                                         ),
+                                        for (final e in widget.categories)
+                                          DropdownMenuItem(
+                                            value: e,
+                                            child: Text(e.name),
+                                          ),
                                       ],
                                       onChanged: !App.isOffline
                                           ? cubit.setCategory
@@ -208,17 +190,20 @@ class _ItemPageState<T extends Item> extends State<ItemPage<T>> {
                               ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 title: Text(
-                                  AppLocalizations.of(context)!
-                                      .addedBy(widget.household?.member
-                                              ?.firstWhereOrNull(
-                                                (e) =>
-                                                    e.id ==
-                                                    (widget.item
-                                                            as ShoppinglistItem)
-                                                        .createdById,
-                                              )
-                                              ?.name ??
-                                          AppLocalizations.of(context)!.other),
+                                  AppLocalizations.of(context)!.addedBy(context
+                                          .read<HouseholdCubit>()
+                                          .state
+                                          .household
+                                          .member
+                                          ?.firstWhereOrNull(
+                                            (e) =>
+                                                e.id ==
+                                                (widget.item
+                                                        as ShoppinglistItem)
+                                                    .createdById,
+                                          )
+                                          ?.name ??
+                                      AppLocalizations.of(context)!.other),
                                 ),
                                 trailing: (widget.item as ShoppinglistItem)
                                             .createdAt !=
@@ -235,9 +220,72 @@ class _ItemPageState<T extends Item> extends State<ItemPage<T>> {
                         ),
                       ),
                     ),
-                  if (widget.item is! RecipeItem)
+                  if (widget.advancedView)
+                    BlocBuilder<ItemEditCubit, ItemEditState>(
+                      bloc: cubit,
+                      builder: (context, state) => SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            if (!App.isOffline)
+                              ItemWrapMenu(
+                                item: cubit.item,
+                                household: context
+                                    .read<HouseholdCubit>()
+                                    .state
+                                    .household,
+                                setIcon: cubit.setIcon,
+                                setName: cubit.setName,
+                                mergeItem: cubit.mergeItem,
+                                deleteItem: () async {
+                                  await cubit.deleteItem();
+                                  if (!mounted) return;
+                                  Navigator.of(context).pop(
+                                      const UpdateValue<Item>(
+                                          UpdateEnum.deleted));
+                                },
+                              ),
+                            const Divider(height: 32),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                AppLocalizations.of(context)!.about,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                            ),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title:
+                                  Text(AppLocalizations.of(context)!.ordering),
+                              trailing: Text(widget.item.ordering.toString()),
+                            ),
+                            if (state.icon != null)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(AppLocalizations.of(context)!.icon),
+                                trailing: Text(state.icon ?? ""),
+                              ),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                  AppLocalizations.of(context)!.defaultWord),
+                              trailing: Text(widget.item.isDefault.toString()),
+                            ),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                  AppLocalizations.of(context)!.defaultKey),
+                              trailing: Text(widget.item.defaultKey ?? ""),
+                            ),
+                            const Divider(),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  if (widget.item is! RecipeItem &&
+                      context.readOrNull<HouseholdCubit>() != null)
                     BlocProvider.value(
-                      value: BlocProvider.of<HouseholdCubit>(context),
+                      value: context.read<HouseholdCubit>(),
                       child: BlocBuilder<ItemEditCubit, ItemEditState>(
                         bloc: cubit,
                         builder: (context, state) {
@@ -294,7 +342,7 @@ class _ItemPageState<T extends Item> extends State<ItemPage<T>> {
                     ),
                   SliverToBoxAdapter(
                     child:
-                        SizedBox(height: MediaQuery.of(context).padding.bottom),
+                        SizedBox(height: MediaQuery.paddingOf(context).bottom),
                   ),
                 ],
               ),
@@ -303,84 +351,5 @@ class _ItemPageState<T extends Item> extends State<ItemPage<T>> {
         ),
       ),
     );
-  }
-
-  Future<void> _handleItemAction(_ItemAction action) async {
-    switch (action) {
-      case _ItemAction.changeIcon:
-        final icon = await Navigator.of(context)
-            .push<Nullable<String?>>(MaterialPageRoute(
-          builder: (context) => IconSelectionPage(
-            oldIcon: cubit.state.icon,
-            name: cubit.state.name,
-          ),
-        ));
-        if (icon != null) cubit.setIcon(icon.value);
-        break;
-      case _ItemAction.rename:
-        final res = await showDialog<String>(
-          context: context,
-          builder: (BuildContext context) {
-            return TextDialog(
-              title: AppLocalizations.of(context)!.categoryEdit,
-              doneText: AppLocalizations.of(context)!.rename,
-              hintText: AppLocalizations.of(context)!.name,
-              initialText: cubit.state.name,
-              isInputValid: (s) => s.trim().isNotEmpty && s != cubit.state.name,
-            );
-          },
-        );
-        if (res != null) cubit.setName(res);
-        break;
-      case _ItemAction.merge:
-        final items = await Navigator.of(
-              context,
-              rootNavigator: true,
-            ).push<List<Item>>(MaterialPageRoute(
-              builder: (context) => ItemSearchPage(
-                household: widget.household!,
-                multiple: false,
-                title: AppLocalizations.of(context)!.itemsMerge,
-              ),
-            )) ??
-            [];
-        if (items.length == 1 && items.first.id != widget.item.id) {
-          final confirmed = await askForConfirmation(
-            context: context,
-            title: Text(
-              AppLocalizations.of(context)!.itemsMerge,
-            ),
-            confirmText: AppLocalizations.of(context)!.merge,
-            content: Text(
-              AppLocalizations.of(context)!.itemsMergeConfirmation(
-                widget.item.name,
-                items.first.name,
-              ),
-            ),
-          );
-          if (confirmed) {
-            await cubit.mergeItem(items.first);
-          }
-        }
-        break;
-      case _ItemAction.delete:
-        final confirmed = await askForConfirmation(
-          context: context,
-          title: Text(
-            AppLocalizations.of(context)!.itemDelete,
-          ),
-          content: Text(
-            AppLocalizations.of(context)!
-                .itemDeleteConfirmation(widget.item.name),
-          ),
-        );
-        if (confirmed) {
-          await cubit.deleteItem();
-          if (!mounted) return;
-          Navigator.of(context)
-              .pop(const UpdateValue<Item>(UpdateEnum.deleted));
-        }
-        break;
-    }
   }
 }

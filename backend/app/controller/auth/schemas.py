@@ -19,7 +19,7 @@ class Login(Schema):
 
 class Signup(Schema):
     username = fields.String(
-        required=True, validate=lambda a: a and not a.isspace() and not "@" in a
+        required=True, validate=lambda a: a and not a.isspace() and "@" not in a
     )
     email = fields.String(
         required=EMAIL_MANDATORY,
@@ -54,7 +54,7 @@ class GetOIDCLoginUrl(Schema):
     )
     kitchenowl_scheme = fields.Boolean(
         required=False,
-        default=False,
+        load_default=False,
         load_only=True,
     )
 

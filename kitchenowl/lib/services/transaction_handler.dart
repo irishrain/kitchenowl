@@ -6,23 +6,24 @@ import 'package:kitchenowl/services/storage/transaction_storage.dart';
 class TransactionHandler {
   static TransactionHandler? _instance;
 
-  TransactionHandler._internal();
+  TransactionHandler.internal();
+
   static TransactionHandler getInstance() {
-    _instance ??= TransactionHandler._internal();
+    _instance ??= TransactionHandler.internal();
 
     return _instance!;
   }
 
   Future<void> runOpenTransactions() async {
     if (ApiService.getInstance().isConnected()) {
-      final transactions =
+      List<Transaction> transactions =
           await TransactionStorage.getInstance().readTransactions();
 
       final now = DateTime.now();
       List<Transaction> openTransactions = [];
       for (final t in transactions) {
         if (t is! ErrorTransaction && t.timestamp.difference(now).inDays < 3) {
-          dynamic res = t.runOnline();
+          dynamic res = await t.runOnline();
           if (res == null || (res is bool && !res)) {
             openTransactions.add(t);
           }

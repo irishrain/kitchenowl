@@ -1,11 +1,15 @@
-from typing import Self
+from typing import Self, TYPE_CHECKING
 from app import db
-from app.helpers import DbModelMixin, TimestampMixin
+from app.helpers import DbModelMixin
 from .recipe import Recipe
 from .planner import Planner
 from sqlalchemy import func
+from sqlalchemy.orm import Mapped
 
 import enum
+
+if TYPE_CHECKING:
+    from app.models import Household, Recipe
 
 
 class Status(enum.Enum):
@@ -13,18 +17,18 @@ class Status(enum.Enum):
     DROPPED = -1
 
 
-class RecipeHistory(db.Model, DbModelMixin, TimestampMixin):
+class RecipeHistory(db.Model, DbModelMixin):
     __tablename__ = "recipe_history"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
 
-    recipe_id = db.Column(db.Integer, db.ForeignKey("recipe.id"))
-    household_id = db.Column(db.Integer, db.ForeignKey("household.id"), nullable=False)
+    recipe_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("recipe.id"))
+    household_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("household.id"), nullable=False)
 
-    household = db.relationship("Household", uselist=False)
-    recipe = db.relationship("Recipe", uselist=False, back_populates="recipe_history")
+    household: Mapped["Household"] = db.relationship("Household", uselist=False)
+    recipe: Mapped["Recipe"] = db.relationship("Recipe", uselist=False, back_populates="recipe_history")
 
-    status = db.Column(db.Enum(Status))
+    status: Mapped[Status] = db.Column(db.Enum(Status))
 
     @classmethod
     def create_added(cls, recipe: Recipe, household_id: int) -> Self:

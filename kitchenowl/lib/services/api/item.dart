@@ -7,6 +7,17 @@ import 'package:kitchenowl/services/api/api_service.dart';
 extension ItemApi on ApiService {
   static const baseRoute = '/item';
 
+  Future<List<Item>?> getAllItems(
+    Household household,
+  ) async {
+    final res = await get('${householdPath(household)}$baseRoute');
+    if (res.statusCode != 200) return null;
+
+    final body = List.from(jsonDecode(res.body));
+
+    return body.map((e) => Item.fromJson(e)).toList();
+  }
+
   Future<Item?> getItem(Item item) async {
     final res = await get('$baseRoute/${item.id}');
     if (res.statusCode != 200) return null;
@@ -47,6 +58,13 @@ extension ItemApi on ApiService {
   Future<bool> updateItem(Item item) async {
     final res =
         await post('$baseRoute/${item.id}', jsonEncode(item.toJsonWithId()));
+
+    return res.statusCode == 200;
+  }
+
+  Future<bool> addItem(Household household, Item item) async {
+    final res = await post('${householdPath(household)}$baseRoute',
+        jsonEncode(item.toJsonWithId()));
 
     return res.statusCode == 200;
   }

@@ -62,6 +62,13 @@ def getAllExpenses(args, household_id):
         else:
             filter.append(Expense.category_id.in_(args["filter"]))
 
+    if "search" in args and args["search"]:
+        if "*" in args["search"] or "_" in args["search"]:
+            query = args["search"].replace("_", "__").replace("*", "%").replace("?", "_")
+        else:
+            query = "%{0}%".format(args["search"])
+        filter.append(Expense.name.ilike(query))
+
     return jsonify(
         [
             e.obj_to_full_dict()
@@ -222,7 +229,7 @@ def getExpenseCategories(household_id):
 @authorize_household()
 @validate_args(GetExpenseOverview)
 def getExpenseOverview(args, household_id):
-    thisMonthStart = datetime.utcnow().date().replace(day=1)
+    thisMonthStart = datetime.now(timezone.utc).date().replace(day=1)
 
     steps = args["steps"] if "steps" in args else 5
     frame = args["frame"] if args["frame"] != None else 2
@@ -238,11 +245,11 @@ def getExpenseOverview(args, household_id):
         .join(Expense.category, isouter=True)
     )
 
-    groupByStr = "YYYY-MM" if "postgresql" in db.engine.name else "%Y-%m" 
+    groupByStr = "YYYY-MM" if "postgresql" in db.engine.name else "%Y-%m"
     if frame < 3:
         groupByStr += "-DD" if "postgresql" in db.engine.name else "-%d"
     if frame < 1:
-        groupByStr += " HH24" if "postgresql" in db.engine.name else" %H"
+        groupByStr += " HH24" if "postgresql" in db.engine.name else " %H"
 
     by_subframe_query = Expense.query.filter(
         Expense.household_id == household_id,
@@ -291,10 +298,10 @@ def getExpenseOverview(args, household_id):
         start = None
         end = None
         if frame == 0:  # daily
-            start = datetime.utcnow().date() - timedelta(days=stepAgo)
+            start = datetime.now(timezone.utc).date() - timedelta(days=stepAgo)
             end = start + timedelta(hours=24)
         elif frame == 1:  # weekly
-            start = datetime.utcnow().date() - relativedelta(
+            start = datetime.now(timezone.utc).date() - relativedelta(
                 days=7, weekday=calendar.MONDAY, weeks=stepAgo
             )
             end = start + timedelta(days=7)
@@ -302,7 +309,7 @@ def getExpenseOverview(args, household_id):
             start = thisMonthStart - relativedelta(months=stepAgo)
             end = start + relativedelta(months=1)
         elif frame == 3:  # yearly
-            start = datetime.utcnow().date().replace(day=1, month=1) - relativedelta(
+            start = datetime.now(timezone.utc).date().replace(day=1, month=1) - relativedelta(
                 years=stepAgo
             )
             end = start + relativedelta(years=1)

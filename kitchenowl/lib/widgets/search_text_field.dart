@@ -91,10 +91,10 @@ class _SearchTextFieldState extends State<SearchTextField> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         width: expanded
-            ? MediaQuery.of(context).size.width
+            ? MediaQuery.sizeOf(context).width
             : getValueForScreenType(
                 context: context,
-                mobile: MediaQuery.of(context).size.width,
+                mobile: MediaQuery.sizeOf(context).width,
                 tablet: 450,
                 desktop: 550,
               ),
@@ -122,7 +122,7 @@ class _SearchTextFieldState extends State<SearchTextField> {
           textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
             isDense: true,
-            fillColor: Theme.of(context).colorScheme.background,
+            fillColor: Theme.of(context).colorScheme.surface,
             border: const OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(14)),
             ),

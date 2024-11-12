@@ -20,7 +20,7 @@ class RecipeListCubit extends Cubit<RecipeListState> {
         toggleView(false);
       }
     });
-    refresh();
+    _initialLoad();
   }
 
   String get query => (state is SearchRecipeListState)
@@ -71,16 +71,31 @@ class RecipeListCubit extends Cubit<RecipeListState> {
     if (state is SearchRecipeListState) {
       query = query ?? state.query;
     }
-    if (_refreshThread != null && query != _refreshCurrentQuery) {
-      _refreshCurrentQuery = query;
-      _refreshThread = _refresh(query);
-    }
-    if (_refreshThread == null) {
+    if (_refreshThread == null || query != _refreshCurrentQuery) {
       _refreshCurrentQuery = query;
       _refreshThread = _refresh(query);
     }
 
     return _refreshThread!;
+  }
+
+  Future<void> _initialLoad() async {
+    final tags = TransactionHandler.getInstance().runTransaction(
+      TransactionTagGetAll(household: household),
+      forceOffline: true,
+    );
+    recipeList = await TransactionHandler.getInstance().runTransaction(
+      TransactionRecipeGetRecipes(household: household),
+      forceOffline: true,
+    );
+
+    if (state is LoadingRecipeListState) {
+      emit(ListRecipeListState(
+        recipes: recipeList,
+        tags: await tags,
+        listView: state.listView,
+      ));
+    }
   }
 
   Future<void> _refresh([String? query, bool runOffline = false]) async {

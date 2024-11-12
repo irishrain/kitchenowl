@@ -8,19 +8,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_localized_locales/flutter_localized_locales.dart';
+import 'package:kitchenowl/config.dart';
 import 'package:kitchenowl/cubits/auth_cubit.dart';
 import 'package:kitchenowl/cubits/server_info_cubit.dart';
 import 'package:kitchenowl/cubits/settings_cubit.dart';
 import 'package:kitchenowl/kitchenowl.dart';
 import 'package:kitchenowl/router.dart';
+import 'package:kitchenowl/services/api/api_service.dart';
 import 'package:kitchenowl/services/storage/storage.dart';
 import 'package:kitchenowl/services/transaction_handler.dart';
 import 'package:kitchenowl/styles/colors.dart';
 import 'package:kitchenowl/styles/themes.dart';
 import 'package:share_handler/share_handler.dart';
-// ignore: depend_on_referenced_packages
 import 'package:image_picker_android/image_picker_android.dart';
-// ignore: depend_on_referenced_packages
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
 class App extends StatefulWidget {
@@ -36,6 +37,12 @@ class App extends StatefulWidget {
 
   static bool get isForcedOffline =>
       _instance!._authCubit.state.forcedOfflineMode;
+
+  static bool get isDefaultServer => currentServer == Config.defaultServer;
+
+  static String get currentServer => ApiService.getInstance()
+      .baseUrl
+      .substring(0, ApiService.getInstance().baseUrl.length - 4);
 
   static SettingsState get settings => _instance!._settingsCubit.state;
 
@@ -110,19 +117,35 @@ class _AppState extends State<App> {
                 if (state is Onboarding) return router.go("/onboarding");
                 if (state is Unauthenticated &&
                     (initialLocation == null ||
-                        !publicRoutes.contains(initialLocation!.path))) {
+                        !publicRoutes.any((path) =>
+                            initialLocation!.path.startsWith(path)))) {
                   return router.go("/signin");
                 }
                 if (state is Unreachable) return router.go("/unreachable");
                 if (state is Unsupported) return router.go("/unsupported");
                 if (state is Loading) return router.go("/");
-                if (state is Authenticated &&
-                    (initialLocation == null || initialLocation?.path == "/")) {
-                  PreferenceStorage.getInstance()
-                      .readInt(key: 'lastHouseholdId')
-                      .then((id) =>
-                          router.go("/household${id == null ? "" : "/$id"}"));
-                  return;
+                if (state is Authenticated) {
+                  if ((initialLocation == null ||
+                      initialLocation?.path == "/")) {
+                    PreferenceStorage.getInstance()
+                        .readInt(key: 'lastHouseholdId')
+                        .then((id) =>
+                            router.go("/household${id == null ? "" : "/$id"}"));
+                    return;
+                  }
+                  if (initialLocation != null) {
+                    final match = RegExp(r'\/recipe\/(\d+)')
+                        .matchAsPrefix(initialLocation!.path);
+                    if (match != null) {
+                      // Redirect public recipe links to last household recipe links
+                      PreferenceStorage.getInstance()
+                          .readInt(key: 'lastHouseholdId')
+                          .then((id) => router.go(id == null
+                              ? initialLocation!.toString()
+                              : "/household/${id}/recipes/details/${match.group(1)}"));
+                      return;
+                    }
+                  }
                 }
                 router.go(initialLocation!.toString());
                 initialLocation = Uri(path: "/");
@@ -136,10 +159,9 @@ class _AppState extends State<App> {
                   if (state.dynamicAccentColor &&
                       lightDynamic != null &&
                       darkDynamic != null) {
-                    // On Android S+ devices, use the provided dynamic color scheme.
-                    // (Recommended) Harmonize the dynamic color scheme' built-in semantic colors.
-                    lightColorScheme = lightDynamic.harmonized();
-                    darkColorScheme = darkDynamic.harmonized();
+                    (lightColorScheme, darkColorScheme) =
+                        _generateDynamicColourSchemes(
+                            lightDynamic, darkDynamic);
                   } else if (state.accentColor != null) {
                     lightColorScheme =
                         ColorScheme.fromSeed(seedColor: state.accentColor!);
@@ -158,7 +180,10 @@ class _AppState extends State<App> {
                     onGenerateTitle: (BuildContext context) =>
                         AppLocalizations.of(context)!.appTitle,
                     localizationsDelegates:
-                        AppLocalizations.localizationsDelegates,
+                        AppLocalizations.localizationsDelegates +
+                            [
+                              LocaleNamesLocalizationsDelegate(),
+                            ],
                     supportedLocales: const [Locale('en')] +
                         AppLocalizations.supportedLocales,
                     theme: AppThemes.light(lightColorScheme),
@@ -184,7 +209,7 @@ class _AppState extends State<App> {
     switch (state.themeMode) {
       case ThemeMode.system:
         final Brightness brightnessValue =
-            MediaQuery.of(context).platformBrightness;
+            MediaQuery.platformBrightnessOf(context);
         if (brightnessValue == Brightness.dark) {
           continue dark;
         } else {
@@ -192,7 +217,7 @@ class _AppState extends State<App> {
         }
       light:
       case ThemeMode.light:
-        final Color backgroundColor = Theme.of(context).colorScheme.background;
+        final Color backgroundColor = Theme.of(context).colorScheme.surface;
         return SystemUiOverlayStyle.dark.copyWith(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
@@ -203,7 +228,7 @@ class _AppState extends State<App> {
         );
       dark:
       case ThemeMode.dark:
-        final Color backgroundColor = Theme.of(context).colorScheme.background;
+        final Color backgroundColor = Theme.of(context).colorScheme.surface;
         return SystemUiOverlayStyle.light.copyWith(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.light,
@@ -229,4 +254,45 @@ class _AppState extends State<App> {
       });
     }
   }
+
+  // TODO: Remove this once https://github.com/material-foundation/flutter-packages/pull/599 is merged
+  (ColorScheme light, ColorScheme dark) _generateDynamicColourSchemes(
+      ColorScheme lightDynamic, ColorScheme darkDynamic) {
+    var lightBase = ColorScheme.fromSeed(seedColor: lightDynamic.primary);
+    var darkBase = ColorScheme.fromSeed(
+        seedColor: darkDynamic.primary, brightness: Brightness.dark);
+
+    var lightAdditionalColours = _extractAdditionalColours(lightBase);
+    var darkAdditionalColours = _extractAdditionalColours(darkBase);
+
+    var lightScheme =
+        _insertAdditionalColours(lightBase, lightAdditionalColours);
+    var darkScheme = _insertAdditionalColours(darkBase, darkAdditionalColours);
+
+    return (lightScheme.harmonized(), darkScheme.harmonized());
+  }
+
+  List<Color> _extractAdditionalColours(ColorScheme scheme) => [
+        scheme.surface,
+        scheme.surfaceDim,
+        scheme.surfaceBright,
+        scheme.surfaceContainerLowest,
+        scheme.surfaceContainerLow,
+        scheme.surfaceContainer,
+        scheme.surfaceContainerHigh,
+        scheme.surfaceContainerHighest,
+      ];
+
+  ColorScheme _insertAdditionalColours(
+          ColorScheme scheme, List<Color> additionalColours) =>
+      scheme.copyWith(
+        surface: additionalColours[0],
+        surfaceDim: additionalColours[1],
+        surfaceBright: additionalColours[2],
+        surfaceContainerLowest: additionalColours[3],
+        surfaceContainerLow: additionalColours[4],
+        surfaceContainer: additionalColours[5],
+        surfaceContainerHigh: additionalColours[6],
+        surfaceContainerHighest: additionalColours[7],
+      );
 }

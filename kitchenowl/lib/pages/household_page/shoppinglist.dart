@@ -1,7 +1,7 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kitchenowl/app.dart';
-import 'package:kitchenowl/cubits/household_cubit.dart';
 import 'package:kitchenowl/cubits/shoppinglist_cubit.dart';
 import 'package:kitchenowl/enums/shoppinglist_sorting.dart';
 import 'package:kitchenowl/models/category.dart';
@@ -9,6 +9,7 @@ import 'package:kitchenowl/models/item.dart';
 import 'package:kitchenowl/kitchenowl.dart';
 import 'package:kitchenowl/widgets/choice_scroll.dart';
 import 'package:kitchenowl/widgets/home_page/sliver_category_item_grid_list.dart';
+import 'package:kitchenowl/widgets/shopping_list/shopping_list_choice_chip.dart';
 
 class ShoppinglistPage extends StatefulWidget {
   const ShoppinglistPage({super.key});
@@ -83,16 +84,13 @@ class _ShoppinglistPageState extends State<ShoppinglistPage> {
                             items: state.result,
                             categories: state.categories,
                             shoppingList: state.selectedShoppinglist,
-                            household: BlocProvider.of<HouseholdCubit>(context)
-                                .state
-                                .household,
-                            onRefresh: () => cubit.refresh(query: ""),
+                            onRefresh: () => cubit.refresh(),
                             selected: (item) =>
                                 item is ShoppinglistItem &&
                                 (App.settings.shoppingListTapToRemove ||
                                     !state.selectedListItems.contains(item)),
                             isLoading: state is LoadingShoppinglistCubitState,
-                            onPressed: (Item item) {
+                            onPressed: Nullable((Item item) {
                               if (item is ShoppinglistItem) {
                                 if (App.settings.shoppingListTapToRemove) {
                                   cubit.remove(item);
@@ -102,7 +100,7 @@ class _ShoppinglistPageState extends State<ShoppinglistPage> {
                               } else {
                                 cubit.add(item);
                               }
-                            },
+                            }),
                           ),
                         ],
                       );
@@ -112,14 +110,12 @@ class _ShoppinglistPageState extends State<ShoppinglistPage> {
 
                     if (state.sorting != ShoppinglistSorting.category ||
                         state is LoadingShoppinglistCubitState &&
-                            state.listItems.isEmpty) {
-                      body = SliverItemGridList(
-                        items: state.listItems,
+                            (state.selectedShoppinglist?.items.isEmpty ??
+                                false)) {
+                      body = SliverItemGridList<ShoppinglistItem>(
+                        items: state.selectedShoppinglist?.items ?? [],
                         categories: state.categories,
                         shoppingList: state.selectedShoppinglist,
-                        household: BlocProvider.of<HouseholdCubit>(context)
-                            .state
-                            .household,
                         selected: (item) =>
                             App.settings.shoppingListTapToRemove &&
                                 !App.settings.shoppingListListView ||
@@ -128,7 +124,7 @@ class _ShoppinglistPageState extends State<ShoppinglistPage> {
                                     !state.selectedListItems.contains(item),
                         isLoading: state is LoadingShoppinglistCubitState,
                         onRefresh: cubit.refresh,
-                        onPressed: (Item item) {
+                        onPressed: Nullable((Item item) {
                           if (item is ShoppinglistItem) {
                             if (App.settings.shoppingListTapToRemove) {
                               cubit.remove(item);
@@ -138,7 +134,7 @@ class _ShoppinglistPageState extends State<ShoppinglistPage> {
                           } else {
                             cubit.add(item);
                           }
-                        },
+                        }),
                       );
                     } else {
                       List<Widget> grids = [];
@@ -147,9 +143,11 @@ class _ShoppinglistPageState extends State<ShoppinglistPage> {
                         Category? category = i < state.categories.length
                             ? state.categories[i]
                             : null;
-                        final List<ShoppinglistItem> items = state.listItems
-                            .where((e) => e.category == category)
-                            .toList();
+                        final List<ShoppinglistItem> items = state
+                                .selectedShoppinglist?.items
+                                .where((e) => e.category == category)
+                                .toList() ??
+                            [];
                         if (items.isEmpty) continue;
 
                         grids.add(SliverCategoryItemGridList(
@@ -166,17 +164,19 @@ class _ShoppinglistPageState extends State<ShoppinglistPage> {
                                       !state.selectedListItems.contains(item),
                           isLoading: state is LoadingShoppinglistCubitState,
                           onRefresh: cubit.refresh,
-                          onPressed: (Item item) {
-                            if (item is ShoppinglistItem) {
-                              if (App.settings.shoppingListTapToRemove) {
-                                cubit.remove(item);
+                          onPressed: Nullable(
+                            (Item item) {
+                              if (item is ShoppinglistItem) {
+                                if (App.settings.shoppingListTapToRemove) {
+                                  cubit.remove(item);
+                                } else {
+                                  cubit.selectItem(item);
+                                }
                               } else {
-                                cubit.selectItem(item);
+                                cubit.add(item);
                               }
-                            } else {
-                              cubit.add(item);
-                            }
-                          },
+                            },
+                          ),
                         ));
                       }
                       body = grids;
@@ -190,42 +190,25 @@ class _ShoppinglistPageState extends State<ShoppinglistPage> {
                             left: (state.shoppinglists.length < 2)
                                 ? const SizedBox()
                                 : ChoiceScroll(
-                                    children:
-                                        state.shoppinglists.map((shoppinglist) {
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                        ),
-                                        child: ChoiceChip(
-                                          showCheckmark: false,
-                                          label: Text(
-                                            shoppinglist.name,
-                                            style: TextStyle(
-                                              color: shoppinglist.id ==
-                                                      state
-                                                          .selectedShoppinglist!
-                                                          .id
-                                                  ? Theme.of(context)
-                                                      .colorScheme
-                                                      .onPrimary
-                                                  : null,
-                                            ),
+                                    children: state.shoppinglists.values
+                                        .sorted((a, b) => b.items.length
+                                            .compareTo(a.items.length))
+                                        .map(
+                                          (shoppinglist) =>
+                                              ShoppingListChoiceChip(
+                                            shoppingList: shoppinglist,
+                                            selected: shoppinglist.id ==
+                                                state.selectedShoppinglistId,
+                                            onSelected: (bool selected) {
+                                              if (selected) {
+                                                cubit.setShoppingList(
+                                                  shoppinglist,
+                                                );
+                                              }
+                                            },
                                           ),
-                                          selected: shoppinglist.id ==
-                                              state.selectedShoppinglist!.id,
-                                          selectedColor: Theme.of(context)
-                                              .colorScheme
-                                              .secondary,
-                                          onSelected: (bool selected) {
-                                            if (selected) {
-                                              cubit.setShoppingList(
-                                                shoppinglist,
-                                              );
-                                            }
-                                          },
-                                        ),
-                                      );
-                                    }).toList(),
+                                        )
+                                        .toList(),
                                   ),
                             right: Padding(
                               padding:
@@ -249,17 +232,30 @@ class _ShoppinglistPageState extends State<ShoppinglistPage> {
                         ),
                         if (body is List) ...body,
                         if (body is! List) body,
-                        if ((state.recentItems.isNotEmpty ||
-                            state is LoadingShoppinglistCubitState))
-                          SliverCategoryItemGridList(
+                        if ((state.selectedShoppinglist?.recentItems
+                                    .isNotEmpty ??
+                                false) ||
+                            state is LoadingShoppinglistCubitState)
+                          SliverCategoryItemGridList<ItemWithDescription>(
                             name:
                                 '${AppLocalizations.of(context)!.itemsRecent}:',
-                            items: state.recentItems,
-                            onPressed: cubit.add,
+                            items: state.selectedShoppinglist?.recentItems
+                                    .take(App.settings.recentItemsCount)
+                                    .toList() ??
+                                [],
+                            onPressed: Nullable(cubit.add),
                             categories: state.categories,
                             shoppingList: state.selectedShoppinglist,
                             onRefresh: cubit.refresh,
                             isLoading: state is LoadingShoppinglistCubitState,
+                            splitByCategories: App
+                                    .settings.recentItemsCategorize &&
+                                !(state.sorting !=
+                                        ShoppinglistSorting.category ||
+                                    state is LoadingShoppinglistCubitState &&
+                                        (state.selectedShoppinglist?.items
+                                                .isEmpty ??
+                                            false)),
                           ),
                       ],
                     );

@@ -7,6 +7,7 @@ import 'package:kitchenowl/cubits/household_cubit.dart';
 import 'package:kitchenowl/enums/update_enum.dart';
 import 'package:kitchenowl/enums/views_enum.dart';
 import 'package:kitchenowl/kitchenowl.dart';
+import 'package:kitchenowl/widgets/household_image.dart';
 
 class HouseholdDrawer extends StatelessWidget {
   final int selectedIndex;
@@ -55,15 +56,25 @@ class HouseholdDrawer extends StatelessWidget {
         BlocBuilder<HouseholdCubit, HouseholdState>(
           builder: (context, state) => Padding(
             padding: const EdgeInsets.fromLTRB(28, 16, 16, 10),
-            child: Text(
-              state.household.name,
-              style: Theme.of(context).textTheme.titleSmall,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (state.household.image != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: HouseholdImage(household: state.household),
+                  ),
+                Text(
+                  state.household.name,
+                  style: Theme.of(context).textTheme.titleSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ),
-        ...pages.where((e) => e != ViewsEnum.profile).map(
+        ...pages.where((e) => e != ViewsEnum.more).map(
           (ViewsEnum destination) {
             return NavigationDrawerDestination(
               label: Text(
@@ -72,6 +83,7 @@ class HouseholdDrawer extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               icon: Icon(destination.toIcon(context)),
+              selectedIcon: Icon(destination.toSelectedIcon(context)),
             );
           },
         ),

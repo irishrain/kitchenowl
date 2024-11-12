@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:kitchenowl/enums/views_enum.dart';
 import 'package:kitchenowl/helpers/named_bytearray.dart';
 import 'package:kitchenowl/models/category.dart';
@@ -53,12 +51,12 @@ class HouseholdUpdateCubit
       featurePlanner: household.featurePlanner ?? true,
       viewOrdering: household.viewOrdering ?? ViewsEnum.values,
       language: household.language,
-      supportedLanguages: state.supportedLanguages,
       image: household.image,
       shoppingLists: await shoppingLists ?? const [],
       tags: await tags ?? {},
       categories: await categories ?? const [],
       expenseCategories: await expenseCategories ?? const [],
+      supportedLanguages: state.supportedLanguages,
     ));
   }
 
@@ -254,13 +252,6 @@ class HouseholdUpdateCubit
 
   Future<bool> deleteHousehold() {
     return ApiService.getInstance().deleteHousehold(household);
-  }
-
-  Future<void> exportHousehold(String path) async {
-    try {
-      final content = await ApiService.getInstance().exportHousehold(household);
-      if (content != null) File(path).writeAsString(content);
-    } catch (_) {}
   }
 
   Future<String?> getExportHousehold() {

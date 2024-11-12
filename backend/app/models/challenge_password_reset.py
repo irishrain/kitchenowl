@@ -1,22 +1,26 @@
 from __future__ import annotations
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
-from typing import Self
+from typing import Self, TYPE_CHECKING
 import uuid
 from app import db
-from app.helpers import DbModelMixin, TimestampMixin
+from app.helpers import DbModelMixin
 from app.models.user import User
+from sqlalchemy.orm import Mapped
+
+if TYPE_CHECKING:
+    from app.models import *
 
 
-class ChallengePasswordReset(db.Model, DbModelMixin, TimestampMixin):
-    challenge_hash = db.Column(db.String(256), primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+class ChallengePasswordReset(db.Model, DbModelMixin):
+    challenge_hash: Mapped[str] = db.Column(db.String(256), primary_key=True)
+    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
 
-    user = db.relationship("User")
+    user: Mapped["User"] = db.relationship("User")
 
     @classmethod
     def find_by_challenge(cls, challenge: str) -> Self:
-        filter_before = datetime.utcnow() - timedelta(hours=3)
+        filter_before = datetime.now(timezone.utc) - timedelta(hours=3)
         return cls.query.filter(
             cls.challenge_hash == hashlib.sha256(bytes(challenge, "utf-8")).hexdigest(),
             cls.created_at >= filter_before,
@@ -38,6 +42,6 @@ class ChallengePasswordReset(db.Model, DbModelMixin, TimestampMixin):
 
     @classmethod
     def delete_expired(cls):
-        filter_before = datetime.utcnow() - timedelta(hours=3)
+        filter_before = datetime.now(timezone.utc) - timedelta(hours=3)
         db.session.query(cls).filter(cls.created_at <= filter_before).delete()
         db.session.commit()

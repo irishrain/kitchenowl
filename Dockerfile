@@ -36,7 +36,7 @@ RUN flutter upgrade
 RUN flutter doctor -v
 
 # Copy the app files to the container
-COPY kitchenowl/.metadata kitchenowl/l10n.yaml kitchenowl/pubspec.yaml /usr/local/src/app/
+COPY kitchenowl/.metadata kitchenowl/l10n.yaml kitchenowl/pubspec.yaml kitchenowl/pubspec.lock /usr/local/src/app/
 COPY kitchenowl/lib /usr/local/src/app/lib
 COPY kitchenowl/web /usr/local/src/app/web
 COPY kitchenowl/assets /usr/local/src/app/assets
@@ -54,7 +54,7 @@ RUN flutter build web --release --dart-define=FLUTTER_WEB_CANVASKIT_URL=/canvask
 # ------------
 # BACKEND BUILDER
 # ------------
-FROM python:3.11-slim as backend_builder
+FROM python:3.12-slim as backend_builder
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
@@ -74,11 +74,11 @@ RUN python -c "import nltk; nltk.download('averaged_perceptron_tagger', download
 # ------------
 # RUNNER
 # ------------
-FROM python:3.11-slim as runner
+FROM python:3.12-slim as runner
 
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
-        libxml2 libpcre3 curl \
+        libxml2 libpcre3 curl media-types \
     && rm -rf /var/lib/apt/lists/*
 
 # Use virtual enviroment
@@ -107,3 +107,5 @@ RUN chmod u+x ./entrypoint.sh
 
 CMD ["--ini", "wsgi.ini:web", "--gevent", "200"]
 ENTRYPOINT ["./entrypoint.sh"]
+
+EXPOSE 8080

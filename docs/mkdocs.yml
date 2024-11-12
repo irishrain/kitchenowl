@@ -1,0 +1,65 @@
+site_name: KitchenOwl Docs
+site_url: https://docs.kitchenowl.org/
+repo_url: https://github.com/tombursch/kitchenowl
+repo_name: tombursch/kitchenowl
+edit_uri: edit/main/docs/docs/
+copyright: >
+  &copy; 2023 KitchenOwl - <a href="https://kitchenowl.org/imprint">Imprint</a>
+theme:
+  name: material
+  logo: img/icon.png
+  favicon: img/icon.png
+  custom_dir: overrides
+  features:
+    - content.tabs.link
+    - toc.follow
+    - navigation.tabs
+    - social
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: kitchenowl
+      accent: green
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: kitchenowl
+      accent: green
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/tombursch/kitchenowl
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/u/tombursch
+    - icon: fontawesome/solid/paper-plane
+      link: mailto:info@kitchenowl.org
+    - icon: fontawesome/solid/comment
+      link: https://matrix.to/#/#kitchenowl:matrix.org
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+extra_css:
+  - stylesheets/extra.css
+  - stylesheets/mkdocsoad.css
+plugins:
+  - search
+  - neoteroi.mkdocsoad:
+      use_pymdownx: true

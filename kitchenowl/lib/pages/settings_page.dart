@@ -291,6 +291,24 @@ class _SettingsPageState extends State<SettingsPage> {
                     upperBound: 30,
                   ),
                 ),
+                ListTile(
+                  title: Text(
+                    AppLocalizations.of(context)!.recentItemsCategorize,
+                  ),
+                  leading: const Icon(Icons.category_rounded),
+                  onTap: () => BlocProvider.of<SettingsCubit>(context)
+                      .setRecentItemsCategorize(
+                    !BlocProvider.of<SettingsCubit>(context)
+                        .state
+                        .recentItemsCategorize,
+                  ),
+                  trailing: KitchenOwlSwitch(
+                    value: state.recentItemsCategorize,
+                    onChanged: (value) =>
+                        BlocProvider.of<SettingsCubit>(context)
+                            .setRecentItemsCategorize(value),
+                  ),
+                ),
                 if (!kIsWeb)
                   ListTile(
                     title: Text(
@@ -503,8 +521,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     onPressed: BlocProvider.of<AuthCubit>(context).logout,
                     icon: const Icon(Icons.logout),
                     style: const ButtonStyle(
-                      foregroundColor:
-                          MaterialStatePropertyAll(Colors.redAccent),
+                      foregroundColor: WidgetStatePropertyAll(Colors.redAccent),
                     ),
                     child: Text(AppLocalizations.of(context)!.logout),
                   ),
@@ -536,7 +553,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 textAlign: TextAlign.center,
               ),
               SizedBox(
-                height: MediaQuery.of(context).padding.bottom + 4,
+                height: MediaQuery.paddingOf(context).bottom + 4,
               ),
             ]),
           ),

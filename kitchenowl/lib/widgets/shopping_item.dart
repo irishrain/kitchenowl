@@ -9,6 +9,11 @@ class ShoppingItemWidget<T extends Item> extends StatelessWidget {
   final void Function(T)? onPressed;
   final void Function(T)? onLongPressed;
   final bool selected;
+  final Widget? extraOption;
+
+  /// Only applicable if gridStyle = false, raises the list items and makes them fully opaque.
+  /// defaults to true for item is ShoppinglistItem || item is RecipeItem && selected
+  final bool? raised;
   final bool gridStyle;
 
   const ShoppingItemWidget({
@@ -18,6 +23,8 @@ class ShoppingItemWidget<T extends Item> extends StatelessWidget {
     this.onLongPressed,
     this.selected = false,
     this.gridStyle = true,
+    this.raised,
+    this.extraOption,
   });
 
   @override
@@ -33,18 +40,21 @@ class ShoppingItemWidget<T extends Item> extends StatelessWidget {
             onPressed: onPressed != null ? () => onPressed!(item) : null,
             onLongPressed:
                 onLongPressed != null ? () => onLongPressed!(item) : null,
+            extraOption: extraOption,
           )
         : SelectableButtonListTile(
             title: item.name,
             selected: selected,
             icon: ItemIcons.get(item),
-            raised: item is ShoppinglistItem || item is RecipeItem && selected,
+            raised: raised ??
+                item is ShoppinglistItem || item is RecipeItem && selected,
             description: (item is ItemWithDescription)
                 ? (item as ItemWithDescription).description
                 : null,
             onPressed: onPressed != null ? () => onPressed!(item) : null,
             onLongPressed:
                 onLongPressed != null ? () => onLongPressed!(item) : null,
+            extraOption: extraOption,
           );
   }
 }

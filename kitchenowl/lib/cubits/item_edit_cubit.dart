@@ -68,16 +68,25 @@ class ItemEditCubit<T extends Item> extends Cubit<ItemEditState> {
     if (shoppingList != null && state.hasChangedDescription(_item)) {
       await TransactionHandler.getInstance()
           .runTransaction(TransactionShoppingListUpdateItem(
+        household: household!,
         shoppinglist: shoppingList!,
         item: _item,
         description: state.description,
       ));
     }
     if (state.hasChangedItem(_item)) {
-      await TransactionHandler.getInstance()
-          .runTransaction(TransactionItemUpdate(
-        item: item,
-      ));
+      if (item.id != null) {
+        await TransactionHandler.getInstance()
+            .runTransaction(TransactionItemUpdate(
+          item: item,
+        ));
+      } else if (household != null) {
+        await TransactionHandler.getInstance()
+            .runTransaction(TransactionItemAdd(
+          household: household!,
+          item: item,
+        ));
+      }
     }
   }
 
@@ -90,8 +99,11 @@ class ItemEditCubit<T extends Item> extends Cubit<ItemEditState> {
   }
 
   Future<bool> mergeItem(Item other) async {
-    if (_item.id != null && other.id != null) {
-      return ApiService.getInstance().mergeItems(_item, other);
+    if (_item.id != null &&
+        other.id != null &&
+        await ApiService.getInstance().mergeItems(_item, other)) {
+      emit(state.copyWith(hasMerged: true));
+      return true;
     }
 
     return false;
@@ -124,6 +136,7 @@ class ItemEditState extends Equatable {
   final String? icon;
   final List<Recipe> recipes;
   final Category? category;
+  final bool hasMerged;
 
   const ItemEditState({
     this.name = "",
@@ -131,6 +144,7 @@ class ItemEditState extends Equatable {
     this.icon,
     this.recipes = const [],
     this.category,
+    this.hasMerged = false,
   });
 
   ItemEditState copyWith({
@@ -139,6 +153,7 @@ class ItemEditState extends Equatable {
     Nullable<String>? icon,
     List<Recipe>? recipes,
     Nullable<Category>? category,
+    bool? hasMerged,
   }) =>
       ItemEditState(
         name: name ?? this.name,
@@ -146,10 +161,12 @@ class ItemEditState extends Equatable {
         icon: (icon ?? Nullable(this.icon)).value,
         recipes: recipes ?? this.recipes,
         category: (category ?? Nullable(this.category)).value,
+        hasMerged: hasMerged ?? this.hasMerged,
       );
 
   @override
-  List<Object?> get props => [name, description, icon, recipes, category];
+  List<Object?> get props =>
+      [name, description, icon, recipes, category, hasMerged];
 
   bool hasChanged(Item comparedTo) =>
       hasChangedItem(comparedTo) || hasChangedDescription(comparedTo);
@@ -157,7 +174,8 @@ class ItemEditState extends Equatable {
   bool hasChangedItem(Item comparedTo) =>
       comparedTo.category != category ||
       comparedTo.icon != icon ||
-      comparedTo.name != name;
+      comparedTo.name != name ||
+      hasMerged;
 
   bool hasChangedDescription(Item comparedTo) {
     return comparedTo is ItemWithDescription &&

@@ -1,7 +1,7 @@
 <h1 align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./docs/img/icon.png">
-    <img width="128" src="./docs/img/logo.png" alt="KitchenOwl">
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/docs/img/icon.png">
+    <img width="128" src="./docs/docs/img/logo.png" alt="KitchenOwl">
   </picture>
 </h1>
 <p align="center">
@@ -11,7 +11,7 @@
 <h4 align="center">
   <a href="https://kitchenowl.org">Website</a> |
   <a href="https://docs.kitchenowl.org">Docs</a> |
-  <a href="https://docs.kitchenowl.org/self-hosting/">Self-Hosting</a> |
+  <a href="https://docs.kitchenowl.org/latest/self-hosting/">Self-Hosting</a> |
   <a href="https://matrix.to/#/#kitchenowl:matrix.org">Matrix</a>
 </h4>
 
@@ -38,13 +38,13 @@
 
 <div align="center">
   <a href='https://play.google.com/store/apps/details?id=com.tombursch.kitchenowl'>
-    <img alt='Get it on Google Play' src='docs/img/badges/playstore.png' height="50" />
+    <img alt='Get it on Google Play' src='docs/docs/img/badges/playstore.png' height="50" />
   </a>
   <a href='https://f-droid.org/packages/com.tombursch.kitchenowl/'>
-    <img alt='Get it on F-Droid' src='docs/img/badges/f-droid.png' height="50"/>
+    <img alt='Get it on F-Droid' src='docs/docs/img/badges/f-droid.png' height="50"/>
   </a>
   <a href='https://apps.apple.com/app/kitchenowl/id1557453670'>
-    <img alt='Get it on the AppStore' src='docs/img/badges/appstore.png' height="50" />
+    <img alt='Get it on the AppStore' src='docs/docs/img/badges/appstore.png' height="50" />
   </a>
 </div>
 
@@ -58,6 +58,7 @@ KitchenOwl is a smart self-hosted grocery list and recipe manager. Easily add it
 - Add items to your shopping list and sync them in real-time with multiple users
 - Partial offline support, so you don't lose track of what to buy even when there is no signal
 - Manage recipes and add them to your shopping list
+- Share recipes with friends and family
 - Create a meal plan to always know what you'll be eating
 - Manage balances and track expenses of your household
 
@@ -82,7 +83,7 @@ Get it in your favorite store or find the current release for your operating sys
 
 ## 🚀 Get started
 
-Please take a look at the [get started guide](https://docs.kitchenowl.org/self-hosting/).
+Please take a look at the [get started guide](https://docs.kitchenowl.org/latest/self-hosting/).
 
 ## 🙌 Contributing
 
@@ -105,7 +106,7 @@ KitchenOwl is moving fast, to stay updated consider starring and watching the re
 
 ### 💬 Status
 
-- [x] Public Alpha: Still working on stuff (sometimes things might break)
+- [x] Public Alpha: Still working on stuff (rarely things might break)
 - [ ] Public Beta: Stable and most planned features complete
 - [ ] Public: Production-ready
 
@@ -115,7 +116,7 @@ KitchenOwl is moving fast, to stay updated consider starring and watching the re
 - [Docs](https://docs.kitchenowl.org)
 - [KitchenOwl Backend](https://github.com/TomBursch/kitchenowl-backend) Repository
 - [KitchenOwl Website](https://github.com/TomBursch/kitchenowl-website) Repository
-- [DockerHub](https://hub.docker.com/repository/docker/tombursch/kitchenowl)
+- [DockerHub](https://hub.docker.com/r/tombursch/kitchenowl)
 - Owl icon taken from [Freepik](https://www.flaticon.com/authors/freepik)
 - [Recipe scrapers](https://github.com/hhursev/recipe-scrapers) used for scraping recipes from the web
 - [Weblate](https://weblate.org/) is helping with continuous localization as part of their ongoing support for open-source software projects.

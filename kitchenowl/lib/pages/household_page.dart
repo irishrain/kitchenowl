@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:kitchenowl/app.dart';
 import 'package:kitchenowl/cubits/auth_cubit.dart';
 import 'package:kitchenowl/cubits/expense_list_cubit.dart';
 import 'package:kitchenowl/cubits/household_cubit.dart';
@@ -12,6 +11,7 @@ import 'package:kitchenowl/enums/views_enum.dart';
 import 'package:kitchenowl/models/household.dart';
 import 'package:kitchenowl/pages/household_page/household_drawer.dart';
 import 'package:kitchenowl/pages/household_page/household_navigation_rail.dart';
+import 'package:kitchenowl/pages/household_page/more.dart';
 import 'package:kitchenowl/pages/page_not_found.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
@@ -28,7 +28,8 @@ class HouseholdPage extends StatefulWidget {
   _HouseholdPageState createState() => _HouseholdPageState();
 }
 
-class _HouseholdPageState extends State<HouseholdPage> {
+class _HouseholdPageState extends State<HouseholdPage>
+    with WidgetsBindingObserver {
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 
   late final HouseholdCubit householdCubit;
@@ -41,23 +42,30 @@ class _HouseholdPageState extends State<HouseholdPage> {
   void initState() {
     super.initState();
     householdCubit = HouseholdCubit(widget.household);
-    shoppingListCubit = ShoppinglistCubit(
-      widget.household,
-      () => App.settings.recentItemsCount,
-    );
+    shoppingListCubit = ShoppinglistCubit(widget.household);
     recipeListCubit = RecipeListCubit(widget.household);
     plannerCubit = PlannerCubit(widget.household);
     expenseListCubit = ExpenseListCubit(widget.household);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     householdCubit.close();
     shoppingListCubit.close();
     recipeListCubit.close();
     plannerCubit.close();
     expenseListCubit.close();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      householdCubit.refresh();
+      shoppingListCubit.refresh();
+    }
   }
 
   void _onItemTapped(
@@ -87,6 +95,17 @@ class _HouseholdPageState extends State<HouseholdPage> {
       case ViewsEnum.balances:
         expenseListCubit.refresh();
         break;
+      case ViewsEnum.more:
+        showModalBottomSheet(
+          context: context,
+          showDragHandle: true,
+          isScrollControlled: true,
+          builder: (context) => BlocProvider.value(
+            value: householdCubit,
+            child: MorePage(),
+          ),
+        );
+        return;
       default:
         break;
     }
@@ -197,9 +216,13 @@ class _HouseholdPageState extends State<HouseholdPage> {
                           NavigationDestinationLabelBehavior.onlyShowSelected,
                       destinations: pages
                           .map((e) => NavigationDestination(
-                                icon: Icon(e.toIcon(context)),
-                                label: e.toLocalizedString(context),
+                                icon: e.toIconWidget(context) ??
+                                    Icon(e.toIcon(context)),
+                                selectedIcon: Icon(e.toSelectedIcon(context)),
+                                label: e.toLocalizedShortString(context),
+                                tooltip: e.toLocalizedString(context),
                               ))
+                          .take(5)
                           .toList(),
                       selectedIndex: _selectedIndex,
                       onDestinationSelected: (i) => _onItemTapped(

@@ -1,5 +1,4 @@
-from datetime import datetime
-import re
+from datetime import datetime, timezone
 import uuid
 import gevent
 
@@ -10,10 +9,17 @@ from app.helpers import validate_args
 from flask import jsonify, Blueprint, request
 from flask_jwt_extended import current_user, jwt_required, get_jwt
 from app.models import User, Token, OIDCLink, OIDCRequest, ChallengeMailVerify
-from app.errors import NotFoundRequest, UnauthorizedRequest, InvalidUsage
+from app.errors import NotFoundRequest, UnauthorizedRequest
 from app.service import mail
 from .schemas import Login, Signup, CreateLongLivedToken, GetOIDCLoginUrl, LoginOIDC
-from app.config import EMAIL_MANDATORY, FRONT_URL, jwt, OPEN_REGISTRATION, oidc_clients
+from app.config import (
+    EMAIL_MANDATORY,
+    FRONT_URL,
+    jwt,
+    OPEN_REGISTRATION,
+    DISABLE_USERNAME_PASSWORD_LOGIN,
+    oidc_clients,
+)
 
 auth = Blueprint("auth", __name__)
 
@@ -24,7 +30,7 @@ def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
     jti = jwt_payload["jti"]
     token = Token.find_by_jti(jti)
     if token is not None:
-        token.last_used_at = datetime.utcnow()
+        token.last_used_at = datetime.now(timezone.utc)
         token.save()
 
     return token is None
@@ -47,36 +53,49 @@ def user_lookup_callback(_jwt_header, jwt_data) -> User:
     return User.find_by_id(identity)
 
 
-@auth.route("", methods=["POST"])
-@validate_args(Login)
-def login(args):
-    username = args["username"].lower().replace(" ", "")
-    user = User.find_by_username(username)
-    if not user or not user.check_password(args["password"]):
-        raise UnauthorizedRequest(
-            message="Unauthorized: IP {} login attemp with wrong username or password".format(
-                request.remote_addr
+if not DISABLE_USERNAME_PASSWORD_LOGIN:
+
+    @auth.route("", methods=["POST"])
+    @validate_args(Login)
+    def login(args):
+        username = args["username"].lower().replace(" ", "")
+        user = None
+        if "@" not in username:
+            user = User.find_by_username(username)
+        else:
+            user = User.find_by_email(username)
+
+        if not user or not user.check_password(args["password"]):
+            raise UnauthorizedRequest(
+                message="Unauthorized: IP {} login attemp with wrong username or password".format(
+                    request.remote_addr
+                )
             )
+        device = "Unkown"
+        if "device" in args:
+            device = args["device"]
+
+        # Create refresh token
+        refreshToken, refreshModel = Token.create_refresh_token(user, device)
+
+        # Create first access token
+        accesssToken, _ = Token.create_access_token(user, refreshModel)
+
+        return jsonify(
+            {
+                "access_token": accesssToken,
+                "refresh_token": refreshToken,
+                "user": user.obj_to_dict(),
+            }
         )
-    device = "Unkown"
-    if "device" in args:
-        device = args["device"]
-
-    # Create refresh token
-    refreshToken, refreshModel = Token.create_refresh_token(user, device)
-
-    # Create first access token
-    accesssToken, _ = Token.create_access_token(user, refreshModel)
-
-    return jsonify({"access_token": accesssToken, "refresh_token": refreshToken})
 
 
-if OPEN_REGISTRATION:
+if OPEN_REGISTRATION and not DISABLE_USERNAME_PASSWORD_LOGIN:
 
     @auth.route("signup", methods=["POST"])
     @validate_args(Signup)
     def signup(args):
-        username = args["username"].lower().replace(" ", "")
+        username = args["username"].lower().replace(" ", "").replace("@", "")
         user = User.find_by_username(username)
         if user:
             return "Request invalid: username", 400
@@ -92,7 +111,11 @@ if OPEN_REGISTRATION:
             email=args["email"] if "email" in args else None,
         )
         if "email" in args and mail.mailConfigured():
-            gevent.spawn(mail.sendVerificationMail, user.id, ChallengeMailVerify.create_challenge(user))
+            gevent.spawn(
+                mail.sendVerificationMail,
+                user.id,
+                ChallengeMailVerify.create_challenge(user),
+            )
 
         device = "Unkown"
         if "device" in args:
@@ -104,7 +127,13 @@ if OPEN_REGISTRATION:
         # Create first access token
         accesssToken, _ = Token.create_access_token(user, refreshModel)
 
-        return jsonify({"access_token": accesssToken, "refresh_token": refreshToken})
+        return jsonify(
+            {
+                "access_token": accesssToken,
+                "refresh_token": refreshToken,
+                "user": user.obj_to_dict(),
+            }
+        )
 
 
 @auth.route("/refresh", methods=["GET"])
@@ -113,7 +142,7 @@ def refresh():
     user = current_user
     if not user:
         raise UnauthorizedRequest(
-            message="Unauthorized: IP {} refresh attemp with wrong username or password".format(
+            message="Unauthorized: IP {} refresh could not get current user".format(
                 request.remote_addr
             )
         )
@@ -127,7 +156,13 @@ def refresh():
     # Create access token
     accesssToken, _ = Token.create_access_token(user, refreshModel)
 
-    return jsonify({"access_token": accesssToken, "refresh_token": refreshToken})
+    return jsonify(
+        {
+            "access_token": accesssToken,
+            "refresh_token": refreshToken,
+            "user": user.obj_to_dict(),
+        }
+    )
 
 
 @auth.route("", methods=["DELETE"])
@@ -190,7 +225,7 @@ if FRONT_URL and len(oidc_clients) > 0:
     @validate_args(GetOIDCLoginUrl)
     def getOIDCLoginUrl(args):
         provider = args["provider"] if "provider" in args else "custom"
-        if not provider in oidc_clients:
+        if provider not in oidc_clients:
             raise NotFoundRequest()
         client = oidc_clients[provider]
         if not client:
@@ -271,7 +306,7 @@ if FRONT_URL and len(oidc_clients) > 0:
                 "code": args["code"],
                 "redirect_uri": oidc_request.redirect_uri,
             },
-            authn_method="client_secret_basic",
+            authn_method="client_secret_post",
         )
         if isinstance(tokenResponse, ErrorResponse):
             oidc_request.delete()
@@ -331,13 +366,15 @@ if FRONT_URL and len(oidc_clients) > 0:
                         username = uuid.uuid4().hex
             newUser = User(
                 username=username,
-                name=userinfo["name"].strip()
-                if "name" in userinfo
-                else userinfo["sub"],
+                name=(
+                    userinfo["name"].strip() if "name" in userinfo else userinfo["sub"]
+                ),
                 email=userinfo["email"].strip() if "email" in userinfo else None,
-                email_verified=userinfo["email_verified"]
-                if "email_verified" in userinfo
-                else False,
+                email_verified=(
+                    userinfo["email_verified"]
+                    if "email_verified" in userinfo
+                    else False
+                ),
                 photo=userinfo["picture"] if "picture" in userinfo else None,
             ).save()
             oidcLink = OIDCLink(

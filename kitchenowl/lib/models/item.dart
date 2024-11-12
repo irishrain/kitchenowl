@@ -11,6 +11,8 @@ class Item extends Model {
   final String? icon;
   final int ordering;
   final Category? category;
+  final bool? isDefault;
+  final String? defaultKey;
 
   const Item({
     this.id,
@@ -18,12 +20,29 @@ class Item extends Model {
     this.icon,
     this.ordering = 0,
     this.category,
+    this.isDefault,
+    this.defaultKey,
   });
+
+  factory Item.fromItem({
+    required Item item,
+  }) =>
+      Item(
+        id: item.id,
+        name: item.name,
+        icon: item.icon,
+        category: item.category,
+        ordering: item.ordering,
+        isDefault: item.isDefault,
+        defaultKey: item.defaultKey,
+      );
 
   factory Item.fromJson(Map<String, dynamic> map) => Item(
         id: map['id'],
         name: map['name'],
         ordering: map['ordering'],
+        isDefault: map['default'],
+        defaultKey: map['default_key'],
         icon: map['icon'],
         category:
             map['category'] != null ? Category.fromJson(map['category']) : null,
@@ -43,7 +62,8 @@ class Item extends Model {
       );
 
   @override
-  List<Object?> get props => [id, name, icon, ordering, category];
+  List<Object?> get props =>
+      [id, name, icon, ordering, isDefault, defaultKey, category];
 
   @override
   Map<String, dynamic> toJson() => {
@@ -57,6 +77,8 @@ class Item extends Model {
       "ordering": ordering,
       "icon": icon,
       "category": category?.toJsonWithId(),
+      "default": isDefault,
+      "default_key": defaultKey,
     });
 }
 
@@ -68,6 +90,8 @@ class ItemWithDescription extends Item {
     required super.name,
     super.ordering = 0,
     super.icon,
+    super.isDefault,
+    super.defaultKey,
     super.category,
     this.description = '',
   });
@@ -78,6 +102,8 @@ class ItemWithDescription extends Item {
         name: map['name'],
         description: map['description'] ?? "",
         icon: map['icon'],
+        isDefault: map['default'],
+        defaultKey: map['default_key'],
         category:
             map['category'] != null ? Category.fromJson(map['category']) : null,
       );
@@ -92,6 +118,8 @@ class ItemWithDescription extends Item {
         icon: item.icon,
         category: item.category,
         ordering: item.ordering,
+        isDefault: item.isDefault,
+        defaultKey: item.defaultKey,
         description: description ??
             ((item is ItemWithDescription) ? item.description : ''),
       );
@@ -116,6 +144,8 @@ class ItemWithDescription extends Item {
         icon: (icon ?? Nullable(this.icon)).value,
         description: description ?? this.description,
         ordering: ordering,
+        isDefault: isDefault,
+        defaultKey: defaultKey,
       );
 
   @override
@@ -133,6 +163,8 @@ class ShoppinglistItem extends ItemWithDescription {
     super.category,
     super.icon,
     super.ordering = 0,
+    super.defaultKey,
+    super.isDefault,
     this.createdById,
     this.createdAt,
   });
@@ -143,6 +175,8 @@ class ShoppinglistItem extends ItemWithDescription {
       name: map['name'],
       description: map['description'],
       ordering: map['ordering'],
+      isDefault: map['default'],
+      defaultKey: map['default_key'],
       icon: map['icon'],
       category:
           map['category'] != null ? Category.fromJson(map['category']) : null,
@@ -171,6 +205,8 @@ class ShoppinglistItem extends ItemWithDescription {
             (item is ItemWithDescription ? item.description : ""),
         category: item.category,
         ordering: item.ordering,
+        isDefault: item.isDefault,
+        defaultKey: item.defaultKey,
         createdAt: createdAt ?? DateTime.now(),
         createdById: createdById,
       );
@@ -189,6 +225,8 @@ class ShoppinglistItem extends ItemWithDescription {
         icon: (icon ?? Nullable(this.icon)).value,
         description: description ?? this.description,
         ordering: ordering,
+        isDefault: isDefault,
+        defaultKey: defaultKey,
       );
 
   @override
@@ -210,6 +248,8 @@ class RecipeItem extends ItemWithDescription {
     required super.name,
     super.description = '',
     super.ordering = 0,
+    super.defaultKey,
+    super.isDefault,
     super.category,
     super.icon,
     this.optional = false,
@@ -220,6 +260,8 @@ class RecipeItem extends ItemWithDescription {
         name: map['name'] ?? '',
         description: map['description'],
         icon: map['icon'],
+        isDefault: map['default'],
+        defaultKey: map['default_key'],
         optional: map['optional'],
         category:
             map['category'] != null ? Category.fromJson(map['category']) : null,
@@ -236,6 +278,8 @@ class RecipeItem extends ItemWithDescription {
         icon: item.icon,
         category: item.category,
         ordering: item.ordering,
+        isDefault: item.isDefault,
+        defaultKey: item.defaultKey,
         description:
             item is ItemWithDescription ? item.description : description,
         optional: optional,
@@ -262,6 +306,9 @@ class RecipeItem extends ItemWithDescription {
         icon: (icon ?? Nullable(this.icon)).value,
         description: description ?? this.description,
         optional: optional ?? this.optional,
+        ordering: ordering,
+        isDefault: isDefault,
+        defaultKey: defaultKey,
       );
 
   RecipeItem withFactor(
@@ -278,6 +325,8 @@ class RecipeItem extends ItemWithDescription {
         name: name,
         icon: icon,
         ordering: ordering,
+        defaultKey: defaultKey,
+        isDefault: isDefault,
         category: category,
       );
 
@@ -286,6 +335,8 @@ class RecipeItem extends ItemWithDescription {
         name: name,
         icon: icon,
         ordering: ordering,
+        defaultKey: defaultKey,
+        isDefault: isDefault,
         category: category,
         description: description,
       );
@@ -295,6 +346,8 @@ class RecipeItem extends ItemWithDescription {
         name: name,
         icon: icon,
         ordering: ordering,
+        defaultKey: defaultKey,
+        isDefault: isDefault,
         category: category,
         description: description,
       );

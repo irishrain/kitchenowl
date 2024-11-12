@@ -1,16 +1,11 @@
-import re
-
-from app.errors import NotFoundRequest, InvalidUsage
-from app.models.recipe import RecipeItems, RecipeTags
+from app.errors import NotFoundRequest
+from app.models import Household, RecipeItems, RecipeTags
 from flask import jsonify, Blueprint
 from flask_jwt_extended import jwt_required
 from app.helpers import validate_args, authorize_household
 from app.models import Recipe, Item, Tag
-from recipe_scrapers import scrape_me
-from recipe_scrapers._exceptions import SchemaOrgException, NoSchemaFoundInWildMode
-from ingredient_parser import parse_ingredient
-
 from app.service.file_has_access_or_download import file_has_access_or_download
+from app.service.recipe_scraping import scrape
 from .schemas import (
     SearchByNameRequest,
     AddRecipe,
@@ -33,12 +28,13 @@ def getAllRecipes(household_id):
 
 
 @recipe.route("/<int:id>", methods=["GET"])
-@jwt_required()
+@jwt_required(optional=True)
 def getRecipeById(id):
     recipe = Recipe.find_by_id(id)
     if not recipe:
         raise NotFoundRequest()
-    recipe.checkAuthorized()
+    if not recipe.public:
+        recipe.checkAuthorized()
     return jsonify(recipe.obj_to_full_dict())
 
 
@@ -61,6 +57,8 @@ def addRecipe(args, household_id):
         recipe.yields = args["yields"]
     if "source" in args:
         recipe.source = args["source"]
+    if "public" in args:
+        recipe.public = args["public"]
     if "photo" in args and args["photo"] != recipe.photo:
         recipe.photo = file_has_access_or_download(args["photo"], recipe.photo)
     recipe.save()
@@ -110,6 +108,8 @@ def updateRecipe(args, id):  # noqa: C901
         recipe.yields = args["yields"]
     if "source" in args:
         recipe.source = args["source"]
+    if "public" in args:
+        recipe.public = args["public"]
     if "photo" in args and args["photo"] != recipe.photo:
         recipe.photo = file_has_access_or_download(args["photo"], recipe.photo)
     recipe.save()
@@ -194,60 +194,11 @@ def getAllFiltered(args, household_id):
 @authorize_household()
 @validate_args(ScrapeRecipe)
 def scrapeRecipe(args, household_id):
-    try:
-        scraper = scrape_me(args["url"], wild_mode=True)
-    except NoSchemaFoundInWildMode:
-        return "Unsupported website", 400
-    recipe = Recipe()
-    recipe.name = scraper.title()
-    try:
-        recipe.time = int(scraper.total_time())
-    except (NotImplementedError, ValueError, SchemaOrgException):
-        pass
-    try:
-        recipe.cook_time = int(scraper.cook_time())
-    except (NotImplementedError, ValueError, SchemaOrgException):
-        pass
-    try:
-        recipe.prep_time = int(scraper.prep_time())
-    except (NotImplementedError, ValueError, SchemaOrgException):
-        pass
-    try:
-        yields = re.search(r"\d*", scraper.yields())
-        if yields:
-            recipe.yields = int(yields.group())
-    except (NotImplementedError, ValueError, SchemaOrgException):
-        pass
-    description = ""
-    try:
-        description = scraper.description() + "\n\n"
-    except (NotImplementedError, ValueError, SchemaOrgException):
-        pass
-    try:
-        description = description + scraper.instructions()
-    except (NotImplementedError, ValueError, SchemaOrgException):
-        pass
-    recipe.description = description
-    recipe.photo = scraper.image()
-    recipe.source = args["url"]
-    items = {}
-    for ingredient in scraper.ingredients():
-        parsed = parse_ingredient(ingredient)
-        name = parsed.name.text if parsed.name else ingredient
-        item = Item.find_by_name(household_id, name)
-        if item:
-            description = f"{parsed.amount[0].quantity if len(parsed.amount) > 0 else ''} {parsed.amount[0].unit if len(parsed.amount) > 0 else ''}"
-            # description = description + (" " if description else "") + (parsed.comment.text if parsed.comment else "") # Usually cooking instructions
+    household = Household.find_by_id(household_id)
+    if not household:
+        raise NotFoundRequest()
 
-            items[ingredient] = item.obj_to_dict() | {
-                "description": description,
-                "optional": False,
-            }
-        else:
-            items[ingredient] = None
-    return jsonify(
-        {
-            "recipe": recipe.obj_to_dict(),
-            "items": items,
-        }
-    )
+    res = scrape(args["url"], household)
+    if res:
+        return jsonify(res)
+    return "Unsupported website", 400
