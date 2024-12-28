@@ -25,6 +25,7 @@ class Token(db.Model, DbModelMixin):
     last_used_at: Mapped[datetime] = db.Column(db.DateTime)
     refresh_token_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("token.id"), nullable=True)
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    used: Mapped[bool] = db.Column(db.Boolean, nullable=False, default=False)
 
     created_tokens: Mapped[List["Token"]] = db.relationship(
         "Token", back_populates="refresh_token", cascade="all, delete-orphan"
@@ -118,13 +119,10 @@ class Token(db.Model, DbModelMixin):
         cls, user: User, device: str | None = None, oldRefreshToken: Self | None = None
     ) -> Tuple[str, Self]:
         assert device or oldRefreshToken
-        if oldRefreshToken and (
-            oldRefreshToken.type != "refresh"
-            or oldRefreshToken.has_created_refresh_token()
-        ):
+        if oldRefreshToken and oldRefreshToken.type != "refresh":
             oldRefreshToken.delete_token_familiy()
             raise UnauthorizedRequest(
-                message="Unauthorized: IP {} reused the same refresh token, logging out user".format(
+                message="Unauthorized: IP {} tried to refresh with non-refresh token".format(
                     request.remote_addr
                 )
             )
@@ -136,7 +134,7 @@ class Token(db.Model, DbModelMixin):
         model.name = device or oldRefreshToken.name
         model.user = user
         if oldRefreshToken:
-            oldRefreshToken.delete_created_access_tokens()
+            # Don't delete old access tokens - they will be invalidated when used
             model.refresh_token = oldRefreshToken
         model.save()
         return refreshToken, model

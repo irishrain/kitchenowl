@@ -30,12 +30,31 @@ auth = Blueprint("auth", __name__)
 def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
     jti = jwt_payload["jti"]
     token = Token.find_by_jti(jti)
-    if token is not None:
-        token.last_used_at = datetime.now(timezone.utc)
-        token.user.last_seen = token.last_used_at
-        token.save()
+    if token is None:
+        return True
 
-    return token is None
+    # Update last used time
+    token.last_used_at = datetime.now(timezone.utc)
+    token.user.last_seen = token.last_used_at
+
+    # Handle token refresh chain
+    if token.type == "access":
+        refresh_token = token.refresh_token
+        if refresh_token and len(refresh_token.created_tokens) > 1:
+            # If this is an old access token and its refresh token has created a new chain
+            if not token.used:
+                # First use of old access token - invalidate new chain and keep this one
+                for t in refresh_token.created_tokens:
+                    if t.id != token.id:
+                        t.delete()
+            else:
+                # Old access token already used - reject it
+                return True
+    
+    # Mark token as used
+    token.used = True
+    token.save()
+    return False
 
 
 # Register a callback function that takes whatever object is passed in as the
