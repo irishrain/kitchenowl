@@ -10,11 +10,13 @@ import 'package:kitchenowl/services/api/api_service.dart';
 class TransactionShoppingListGet extends Transaction<List<ShoppingList>> {
   final Household household;
   final ShoppinglistSorting sorting;
+  final bool showAll;
 
   TransactionShoppingListGet({
     DateTime? timestamp,
     required this.household,
     this.sorting = ShoppinglistSorting.alphabetical,
+    this.showAll = false,
   }) : super.internal(
           timestamp ?? DateTime.now(),
           "TransactionShoppingListGet",
@@ -31,6 +33,7 @@ class TransactionShoppingListGet extends Transaction<List<ShoppingList>> {
       household,
       sorting: sorting,
       recentItemlimit: App.settings.recentItemsCount + 3,
+      showAll: showAll,
     );
     if (lists != null) {
       MemStorage.getInstance().writeShoppingLists(household, lists);

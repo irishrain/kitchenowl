@@ -1,4 +1,4 @@
-from app.errors import NotFoundRequest
+from app.errors import NotFoundRequest, InvalidUsage
 from flask import jsonify, Blueprint
 from flask_jwt_extended import jwt_required
 from app import db
@@ -41,6 +41,8 @@ def addPlannedRecipe(args, household_id):
     recipe = Recipe.find_by_id(args["recipe_id"])
     if not recipe:
         raise NotFoundRequest()
+    if recipe.household_id != household_id:
+        raise InvalidUsage("Cannot add recipes from different households")
     day = args["day"] if "day" in args else -1
     planner = Planner.find_by_day(household_id, recipe_id=recipe.id, day=day)
     if not planner:

@@ -97,6 +97,7 @@ class ItemPopupMenuButton extends StatelessWidget {
                 household: household!,
                 multiple: false,
                 title: AppLocalizations.of(context)!.itemsMerge,
+                shoppingListHousehold: household,
               ),
             )) ??
             [];

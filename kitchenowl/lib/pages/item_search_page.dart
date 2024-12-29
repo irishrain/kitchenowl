@@ -10,6 +10,7 @@ class ItemSearchPage extends StatefulWidget {
   final bool multiple;
   final List<Item> selectedItems;
   final String? title;
+  final Household? shoppingListHousehold;
 
   const ItemSearchPage({
     super.key,
@@ -17,6 +18,7 @@ class ItemSearchPage extends StatefulWidget {
     this.multiple = true,
     this.title,
     this.selectedItems = const [],
+    this.shoppingListHousehold,
   });
 
   @override
@@ -30,7 +32,7 @@ class _ItemSearchPageState extends State<ItemSearchPage> {
   @override
   void initState() {
     super.initState();
-    cubit = ItemSearchCubit(widget.household, widget.selectedItems);
+    cubit = ItemSearchCubit(widget.household, widget.selectedItems, shoppingListHousehold: widget.shoppingListHousehold);
   }
 
   @override

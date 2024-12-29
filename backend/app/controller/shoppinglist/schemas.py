@@ -4,6 +4,7 @@ from marshmallow import fields, Schema, EXCLUDE
 class GetShoppingLists(Schema):
     orderby = fields.Integer()
     recent_limit = fields.Integer(load_default=9, validate=lambda x: x > 0 and x <= 60)
+    show_all = fields.Boolean(load_default=False)
 
 
 class AddItemByName(Schema):

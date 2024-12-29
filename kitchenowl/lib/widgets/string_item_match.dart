@@ -110,6 +110,7 @@ class StringItemMatch extends StatelessWidget {
             multiple: false,
             title: string,
             selectedItems: item != null ? [item!] : const [],
+            shoppingListHousehold: household,
           ),
         )) ??
         [];

@@ -388,6 +388,7 @@
   "@yes": {},
   "@yields": {},
   "@you": {},
+  "@showAllHouseholdLists": {},
   "about": "About",
   "accountCreate": "Create account",
   "accountCreateHint": "Your username and name are public, so pick something you're comfortable sharing with others.",
@@ -660,5 +661,6 @@
   "yearly": "Yearly",
   "yes": "Yes",
   "yields": "Yields",
-  "you": "you"
+  "you": "you",
+  "showAllHouseholdLists": "Show lists from all households"
 }

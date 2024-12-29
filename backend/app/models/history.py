@@ -2,6 +2,7 @@ from typing import Self, TYPE_CHECKING
 from app import db
 from app.helpers import DbModelMixin
 from .shoppinglist import ShoppinglistItems
+from .item import Item
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped
 
@@ -84,14 +85,30 @@ class History(db.Model, DbModelMixin):
 
     @classmethod
     def get_recent(cls, shoppinglist_id: int, limit: int = 9) -> list[Self]:
+        # First get the household_id of the shopping list
+        from app.models import Shoppinglist
+        shoppinglist = Shoppinglist.find_by_id(shoppinglist_id)
+        if not shoppinglist:
+            return []
+            
         if "postgresql" in db.engine.name:
-            sq = db.session.query(ShoppinglistItems.item_id).subquery().select()
+            # Get items currently in any shopping list in this household
+            sq = (
+                db.session.query(ShoppinglistItems.item_id)
+                .join(ShoppinglistItems.shoppinglist)
+                .filter(Shoppinglist.household_id == shoppinglist.household_id)
+                .subquery()
+                .select()
+            )
+            # Get recent items from this household's shopping lists
             sq2 = (
                 cls.query.filter(
                     cls.shoppinglist_id == shoppinglist_id,
                     cls.status == Status.DROPPED,
                     cls.item_id.notin_(sq),
                 )
+                .join(cls.item)  # Join with items
+                .filter(Item.household_id == shoppinglist.household_id)  # Only items from this household
                 .distinct(cls.item_id)
                 .order_by(cls.item_id, cls.created_at.desc())
                 .limit(limit)
@@ -101,19 +118,30 @@ class History(db.Model, DbModelMixin):
             q = db.session.query(alias).order_by(alias.created_at.desc())
             return q.all()
         else:
-            sq = db.session.query(ShoppinglistItems.item_id).subquery().select()
+            # Get items currently in any shopping list in this household
+            sq = (
+                db.session.query(ShoppinglistItems.item_id)
+                .join(ShoppinglistItems.shoppinglist)
+                .filter(Shoppinglist.household_id == shoppinglist.household_id)
+                .subquery()
+                .select()
+            )
+            # Get recent items from this household's shopping lists
             sq2 = (
                 db.session.query(func.max(cls.id))
                 .filter(cls.status == Status.DROPPED)
                 .filter(cls.item_id.notin_(sq))
+                .join(cls.item)  # Join with items
+                .filter(Item.household_id == shoppinglist.household_id)  # Only items from this household
                 .group_by(cls.item_id)
-                .join(cls.item)
                 .subquery()
                 .select()
             )
             return (
                 cls.query.filter(cls.shoppinglist_id == shoppinglist_id)
                 .filter(cls.id.in_(sq2))
+                .join(cls.item)  # Join with items to ensure household check
+                .filter(Item.household_id == shoppinglist.household_id)  # Only items from this household
                 .order_by(cls.created_at.desc(), cls.item_id)
                 .limit(limit)
             )

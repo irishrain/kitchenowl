@@ -15,9 +15,10 @@ extension ShoppinglistApi on ApiService {
     Household household, {
     ShoppinglistSorting sorting = ShoppinglistSorting.alphabetical,
     int recentItemlimit = 9,
+    bool showAll = false,
   }) async {
     final res = await get(route(household: household) +
-        "?orderby=${sorting.index}&recent_limit=${recentItemlimit}");
+        "?orderby=${sorting.index}&recent_limit=${recentItemlimit}&show_all=${showAll}");
     if (res.statusCode != 200) return null;
 
     final body = List.from(jsonDecode(res.body));

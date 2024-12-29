@@ -1,4 +1,4 @@
-from app.errors import NotFoundRequest
+from app.errors import NotFoundRequest, InvalidUsage
 from app.models import Household, RecipeItems, RecipeTags
 from flask import jsonify, Blueprint
 from flask_jwt_extended import jwt_required
@@ -67,9 +67,16 @@ def addRecipe(args, household_id):
             item = Item.find_by_name(household_id, recipeItem["name"])
             if not item:
                 item = Item.create_by_name(household_id, recipeItem["name"])
+            elif item.household_id != household_id:
+                raise InvalidUsage("Cannot add items from different households")
+                
             con = RecipeItems(
                 description=recipeItem["description"], optional=recipeItem["optional"]
             )
+            # Add all related objects to session
+            db.session.add(item)
+            db.session.add(recipe)
+            db.session.add(con)
             con.item = item
             con.recipe = recipe
             con.save()
@@ -78,7 +85,14 @@ def addRecipe(args, household_id):
             tag = Tag.find_by_name(household_id, tagName)
             if not tag:
                 tag = Tag.create_by_name(household_id, tagName)
+            elif tag.household_id != household_id:
+                raise InvalidUsage("Cannot add tags from different households")
+                
             con = RecipeTags()
+            # Add all related objects to session
+            db.session.add(tag)
+            db.session.add(recipe)
+            db.session.add(con)
             con.tag = tag
             con.recipe = recipe
             con.save()
@@ -122,6 +136,9 @@ def updateRecipe(args, id):  # noqa: C901
             item = Item.find_by_name(recipe.household_id, recipeItem["name"])
             if not item:
                 item = Item.create_by_name(recipe.household_id, recipeItem["name"])
+            elif item.household_id != recipe.household_id:
+                raise InvalidUsage("Cannot add items from different households")
+                
             con = RecipeItems.find_by_ids(recipe.id, item.id)
             if con:
                 if "description" in recipeItem:
@@ -133,6 +150,10 @@ def updateRecipe(args, id):  # noqa: C901
                     description=recipeItem["description"],
                     optional=recipeItem["optional"],
                 )
+            # Add all related objects to session
+            db.session.add(item)
+            db.session.add(recipe)
+            db.session.add(con)
             con.item = item
             con.recipe = recipe
             con.save()
@@ -144,9 +165,16 @@ def updateRecipe(args, id):  # noqa: C901
             tag = Tag.find_by_name(recipe.household_id, recipeTag)
             if not tag:
                 tag = Tag.create_by_name(recipe.household_id, recipeTag)
+            elif tag.household_id != recipe.household_id:
+                raise InvalidUsage("Cannot add tags from different households")
+                
             con = RecipeTags.find_by_ids(recipe.id, tag.id)
             if not con:
                 con = RecipeTags()
+                # Add all related objects to session
+                db.session.add(tag)
+                db.session.add(recipe)
+                db.session.add(con)
                 con.tag = tag
                 con.recipe = recipe
                 con.save()

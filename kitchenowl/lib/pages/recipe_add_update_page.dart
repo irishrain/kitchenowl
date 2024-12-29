@@ -662,6 +662,7 @@ class _AddUpdateRecipePageState extends State<AddUpdateRecipePage> {
                 .where((e) => e.optional == optional)
                 .map((e) => e.toItemWithDescription())
                 .toList(),
+            shoppingListHousehold: widget.household,
           ),
         )) ??
         [];

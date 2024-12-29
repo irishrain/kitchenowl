@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kitchenowl/enums/shoppinglist_sorting.dart';
+import 'package:kitchenowl/app.dart';
 import 'package:kitchenowl/models/category.dart';
 import 'package:kitchenowl/models/household.dart';
 import 'package:kitchenowl/models/item.dart';
@@ -303,9 +304,10 @@ class ShoppinglistCubit extends Cubit<ShoppinglistCubitState> {
 
   Future<Map<int, ShoppingList>> fetchShoppingLists(
       [bool forceOffline = false]) async {
+    final showAll = App.settings.showAllHouseholdLists;
     final shoppingLists = await TransactionHandler.getInstance()
         .runTransaction(
-          TransactionShoppingListGet(household: household),
+          TransactionShoppingListGet(household: household, showAll: showAll),
           forceOffline: forceOffline,
         )
         .then((lists) => Map.fromEntries(lists
@@ -403,7 +405,7 @@ class ShoppinglistCubit extends Cubit<ShoppinglistCubitState> {
       Future<List<Item>> searchItems = TransactionHandler.getInstance()
           .runTransaction(
             TransactionShoppingListSearchItem(
-              household: household,
+              household: shoppinglist?.household ?? household,
               query: queryName,
             ),
           )

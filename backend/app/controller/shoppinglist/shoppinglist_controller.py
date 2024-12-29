@@ -55,7 +55,12 @@ def createShoppinglist(args, household_id):
 @authorize_household()
 @validate_args(GetShoppingLists)
 def getShoppinglists(args, household_id):
-    shoppinglists = Shoppinglist.all_from_household(household_id)
+    show_all = args.get("show_all", False)
+    if show_all:
+        shoppinglists = Shoppinglist.all_from_user_households(current_user.id)
+    else:
+        shoppinglists = Shoppinglist.all_from_household(household_id)
+    
     recentItems = {}
     for shoppinglist in shoppinglists:
         recentItems[shoppinglist.id] = [
@@ -71,7 +76,9 @@ def getShoppinglists(args, household_id):
     for shoppinglist in shoppinglists:
         items[shoppinglist.id] = (
             ShoppinglistItems.query.filter(
-                ShoppinglistItems.shoppinglist_id == shoppinglist.id
+                ShoppinglistItems.shoppinglist_id == shoppinglist.id,
+                ShoppinglistItems.item_id == Item.id,
+                Item.household_id == shoppinglist.household_id
             )
             .join(ShoppinglistItems.item)
             .order_by(*orderby, Item.name)
@@ -131,31 +138,54 @@ def deleteShoppinglist(id):
 @jwt_required()
 @validate_args(UpdateDescription)
 def updateItemDescription(args, id: int, item_id: int):
-    con = ShoppinglistItems.find_by_ids(id, item_id)
-    if not con:
-        shoppinglist = Shoppinglist.find_by_id(id)
-        item = Item.find_by_id(item_id)
-        if not item or not shoppinglist:
-            raise NotFoundRequest()
-        if shoppinglist.household_id != item.household_id:
-            raise InvalidUsage()
-        con = ShoppinglistItems()
-        con.shoppinglist = shoppinglist
-        con.item = item
-        con.created_by = current_user.id
-    con.shoppinglist.checkAuthorized()
-
-    con.description = args["description"] or ""
-    con.save()
-    socketio.emit(
-        "shoppinglist_item:add",
-        {
-            "item": con.obj_to_item_dict(),
-            "shoppinglist": con.shoppinglist.obj_to_dict(),
-        },
-        to=con.shoppinglist.household_id,
-    )
-    return jsonify(con.obj_to_item_dict())
+    # Start a new transaction
+    db.session.begin_nested()
+    try:
+        con = ShoppinglistItems.find_by_ids(id, item_id)
+        if not con:
+            shoppinglist = Shoppinglist.find_by_id(id)
+            item = Item.find_by_id(item_id)
+            if not item or not shoppinglist:
+                raise NotFoundRequest()
+            # Allow cross-household items if user has access to both households
+            from app.models import HouseholdMember
+            user_households = [h.household_id for h in HouseholdMember.find_by_user(current_user.id)]
+            if item.household_id not in user_households or shoppinglist.household_id not in user_households:
+                raise InvalidUsage()
+            
+            # Add objects to session before creating relationships
+            db.session.add(shoppinglist)
+            db.session.add(item)
+            
+            con = ShoppinglistItems()
+            db.session.add(con)
+            con.shoppinglist = shoppinglist
+            con.item = item
+            con.created_by = current_user.id
+        else:
+            # Add existing objects to session
+            db.session.add(con)
+            db.session.add(con.shoppinglist)
+            db.session.add(con.item)
+            
+        con.shoppinglist.checkAuthorized()
+        con.description = args["description"] or ""
+        
+        # Commit the transaction
+        db.session.commit()
+        
+        socketio.emit(
+            "shoppinglist_item:add",
+            {
+                "item": con.obj_to_item_dict(),
+                "shoppinglist": con.shoppinglist.obj_to_dict(),
+            },
+            to=con.shoppinglist.household_id,
+        )
+        return jsonify(con.obj_to_item_dict())
+    except:
+        db.session.rollback()
+        raise
 
 
 @shoppinglist.route("/<int:id>/items", methods=["GET"])
@@ -285,34 +315,54 @@ def getSuggestedItems(id):
 @jwt_required()
 @validate_args(AddItemByName)
 def addShoppinglistItemByName(args, id):
-    shoppinglist = Shoppinglist.find_by_id(id)
-    if not shoppinglist:
-        raise NotFoundRequest()
-    shoppinglist.checkAuthorized()
+    # Start a new transaction
+    db.session.begin_nested()
+    try:
+        shoppinglist = Shoppinglist.find_by_id(id)
+        if not shoppinglist:
+            raise NotFoundRequest()
+        shoppinglist.checkAuthorized()
+        
+        # Add shoppinglist to session
+        db.session.add(shoppinglist)
 
-    item = Item.find_by_name(shoppinglist.household_id, args["name"])
-    if not item:
-        item = Item.create_by_name(shoppinglist.household_id, args["name"])
+        # Try to find or create item in the shopping list's household
+        item = Item.find_by_name(shoppinglist.household_id, args["name"])
+        if not item:
+            # If not found, create in the shopping list's household
+            item = Item.create_by_name(shoppinglist.household_id, args["name"])
+        
+        # Add item to session
+        db.session.add(item)
 
-    con = ShoppinglistItems.find_by_ids(shoppinglist.id, item.id)
-    if not con:
-        description = args["description"] if "description" in args else ""
-        con = ShoppinglistItems(description=description)
-        con.created_by = current_user.id
-        con.item = item
-        con.shoppinglist = shoppinglist
-        con.save()
+        con = ShoppinglistItems.find_by_ids(shoppinglist.id, item.id)
+        if not con:
+            description = args["description"] if "description" in args else ""
+            con = ShoppinglistItems(description=description)
+            con.created_by = current_user.id
+            # Add to session before setting relationships
+            db.session.add(con)
+            con.item = item
+            con.shoppinglist = shoppinglist
+            
+            # Create history entry
+            history = History.create_added_without_save(shoppinglist, item, description)
+            db.session.add(history)
+            
+            # Commit the transaction
+            db.session.commit()
 
-        History.create_added(shoppinglist, item, description)
-
-        socketio.emit(
-            "shoppinglist_item:add",
-            {
-                "item": con.obj_to_item_dict(),
-                "shoppinglist": shoppinglist.obj_to_dict(),
-            },
-            to=shoppinglist.household_id,
-        )
+            socketio.emit(
+                "shoppinglist_item:add",
+                {
+                    "item": con.obj_to_item_dict(),
+                    "shoppinglist": shoppinglist.obj_to_dict(),
+                },
+                to=shoppinglist.household_id,
+            )
+    except:
+        db.session.rollback()
+        raise
 
     return jsonify(item.obj_to_dict())
 
@@ -382,13 +432,22 @@ def removeShoppinglistItemFunc(
     if not con:
         return None
     description = con.description
-    con.delete()
 
+    # Add all related objects to the session before deleting
+    db.session.add(item)
+    db.session.add(shoppinglist)
+    db.session.add(con)
+    
+    # Create history before deleting the connection
     removed_at_datetime = None
     if removed_at:
         removed_at_datetime = datetime.fromtimestamp(removed_at / 1000, timezone.utc)
-
-    History.create_dropped(shoppinglist, item, description, removed_at_datetime)
+    history = History.create_dropped(shoppinglist, item, description, removed_at_datetime)
+    db.session.add(history)
+    
+    # Now delete the connection
+    con.delete()
+    
     return con
 
 
@@ -404,26 +463,34 @@ def addRecipeItems(args, id):
     try:
         for recipeItem in args["items"]:
             item = Item.find_by_id(recipeItem["id"])
+            if not item:
+                continue
+                
+            # Check if item belongs to the same household as the shopping list
+            if item.household_id != shoppinglist.household_id:
+                raise InvalidUsage("Cannot add items from different households")
+                
             item.checkAuthorized()
-            if item:
-                description = recipeItem["description"]
-                con = ShoppinglistItems.find_by_ids(shoppinglist.id, item.id)
-                if con:
-                    # merge descriptions
-                    con.description = description_merger.merge(
-                        con.description, description
-                    )
-                    db.session.add(con)
-                else:
-                    con = ShoppinglistItems(description=description)
-                    con.created_by = current_user.id
-                    con.item = item
-                    con.shoppinglist = shoppinglist
-                    db.session.add(con)
-
-                db.session.add(
-                    History.create_added_without_save(shoppinglist, item, description)
+            description = recipeItem["description"]
+            con = ShoppinglistItems.find_by_ids(shoppinglist.id, item.id)
+            if con:
+                # merge descriptions
+                con.description = description_merger.merge(
+                    con.description, description
                 )
+                db.session.add(con)
+            else:
+                con = ShoppinglistItems(description=description)
+                con.created_by = current_user.id
+                con.item = item
+                con.shoppinglist = shoppinglist
+                # Add all related objects to the session
+                db.session.add(item)
+                db.session.add(shoppinglist)
+                db.session.add(con)
+
+                history = History.create_added_without_save(shoppinglist, item, description)
+                db.session.add(history)
 
                 socketio.emit(
                     "shoppinglist_item:add",

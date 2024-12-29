@@ -7,8 +7,9 @@ import 'package:collection/collection.dart';
 
 class ItemSearchCubit extends Cubit<ItemSearchState> {
   final Household household;
+  final Household? shoppingListHousehold;  // The household that owns the shopping list
 
-  ItemSearchCubit(this.household, List<Item> selectedItems)
+  ItemSearchCubit(this.household, List<Item> selectedItems, {this.shoppingListHousehold})
       : super(ItemSearchState(selectedItems, '', const []));
 
   void itemSelected(Item item) {
@@ -24,8 +25,10 @@ class ItemSearchCubit extends Cubit<ItemSearchState> {
       final (queryName, queryDescription) = parseQuery(query);
 
       List<Item> items = [];
+      // Use the shopping list's household for searching items if available
+      final searchHousehold = shoppingListHousehold ?? household;
       for (Item item
-          in (await ApiService.getInstance().searchItem(household, queryName) ??
+          in (await ApiService.getInstance().searchItem(searchHousehold, queryName) ??
               [])) {
         String? description = state.selectedItems
                 .whereType<ItemWithDescription>()

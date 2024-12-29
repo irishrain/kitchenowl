@@ -32,7 +32,7 @@ class Item(db.Model, DbModelMixin, DbModelAuthorizeMixin):
         "RecipeItems", back_populates="item", cascade="all, delete-orphan"
     )
     shoppinglists: Mapped[List["ShoppinglistItems"]] = db.relationship(
-        "ShoppinglistItems", back_populates="item", cascade="all, delete-orphan"
+        "ShoppinglistItems", back_populates="item", cascade="all, delete-orphan", viewonly=True
     )
 
     # determines order of items in the shoppinglist
@@ -79,8 +79,9 @@ class Item(db.Model, DbModelMixin, DbModelAuthorizeMixin):
         return super().save()
 
     def merge(self, other: Self) -> None:
+        from app.errors import InvalidUsage
         if other.household_id != self.household_id:
-            return
+            raise InvalidUsage("Cannot merge items from different households")
 
         from app.models import RecipeItems
         from app.models import History
@@ -110,18 +111,21 @@ class Item(db.Model, DbModelMixin, DbModelAuthorizeMixin):
 
         for si in ShoppinglistItems.query.filter(
             ShoppinglistItems.item_id == other.id
-        ).all():
+        ).join(ShoppinglistItems.shoppinglist).all():
             si: ShoppinglistItems
             existingSi = ShoppinglistItems.find_by_ids(si.shoppinglist_id, self.id)
             if not existingSi:
-                si.item_id = self.id
+                # Add to session before modifying
                 db.session.add(si)
+                si.item_id = self.id
+                si.item = self
             else:
+                # Add to session before modifying
+                db.session.add(existingSi)
                 existingSi.description = description_merger.merge(
                     existingSi.description, si.description
                 )
                 db.session.delete(si)
-                db.session.add(existingSi)
 
         for history in History.query.filter(History.item_id == other.id).all():
             history.item_id = self.id
