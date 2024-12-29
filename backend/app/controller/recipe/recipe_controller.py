@@ -1,5 +1,6 @@
 from app.errors import NotFoundRequest, InvalidUsage
 from app.models import Household, RecipeItems, RecipeTags
+from app import db
 from flask import jsonify, Blueprint
 from flask_jwt_extended import jwt_required
 from app.helpers import validate_args, authorize_household
