@@ -17,8 +17,8 @@ def test_current_user(user_client, username, name):
     assert data["name"] == name
 
 
-def test_current_user_unauthenticated(onboarded_client):
-    response = onboarded_client.get('/api/user',)
+def test_current_user_unauthenticated(client):
+    response = client.get('/api/user',)
     assert response.status_code == 401
 
 

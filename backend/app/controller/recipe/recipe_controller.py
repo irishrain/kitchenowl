@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from app.errors import NotFoundRequest, InvalidUsage
 from app.models import Household, RecipeItems, RecipeTags
 from app import db
@@ -65,11 +66,22 @@ def addRecipe(args, household_id):
     recipe.save()
     if "items" in args:
         for recipeItem in args["items"]:
+            # Check if the item exists in the target household
             item = Item.find_by_name(household_id, recipeItem["name"])
+            
+            # If it doesn't exist in the target household, check if it exists in any other household
             if not item:
+                # Use a raw query to check if the item exists in any other household
+                other_household_item = Item.query.filter(
+                    func.lower(Item.name) == func.lower(recipeItem["name"].strip()),
+                    Item.household_id != household_id
+                ).first()
+                
+                if other_household_item:
+                    raise InvalidUsage("Cannot add items from different households")
+                
+                # If the item doesn't exist in any household, create it in the target household
                 item = Item.create_by_name(household_id, recipeItem["name"])
-            elif item.household_id != household_id:
-                raise InvalidUsage("Cannot add items from different households")
                 
             con = RecipeItems(
                 description=recipeItem["description"], optional=recipeItem["optional"]

@@ -152,14 +152,9 @@ class Item(db.Model, DbModelMixin, DbModelAuthorizeMixin):
     @classmethod
     def find_by_name(cls, household_id: int, name: str) -> Self:
         name = name.strip()
-        # First try to find in the specified household
-        item = cls.query.filter(
+        return cls.query.filter(
             cls.household_id == household_id, func.lower(cls.name) == func.lower(name)
         ).first()
-        if item:
-            return item
-        # If not found, check if it exists in another household
-        return cls.query.filter(func.lower(cls.name) == func.lower(name)).first()
 
     @classmethod
     def find_by_default_key(cls, household_id: int, default_key: str) -> Self:
@@ -198,6 +193,7 @@ class Item(db.Model, DbModelMixin, DbModelAuthorizeMixin):
                     cls.support.desc(),
                 )
                 .limit(item_count)
+                .all()
             )
 
         found = []
@@ -223,10 +219,60 @@ class Item(db.Model, DbModelMixin, DbModelAuthorizeMixin):
             name_one_error = name[:index] + "_" + name[index + 1:]
             one_error.append("%{0}%".format(name_one_error))
 
-        for looking_for in [starts_with, contains] + one_error:
+        # First try exact match
+        exact_match = (
+            cls.query.filter(
+                func.lower(cls.name) == func.lower(name),
+                cls.household_id == household_id
+            )
+            .order_by(cls.support.desc(), cls.name)
+            .all()
+        )
+        for r in exact_match:
+            if r not in found:
+                found.append(r)
+                item_count -= 1
+                if item_count <= 0:
+                    return found
+
+        # Then try starts with
+        starts_with_match = (
+            cls.query.filter(
+                cls.name.ilike(starts_with),
+                cls.household_id == household_id
+            )
+            .order_by(cls.support.desc(), cls.name)
+            .all()
+        )
+        for r in starts_with_match:
+            if r not in found:
+                found.append(r)
+                item_count -= 1
+                if item_count <= 0:
+                    return found
+
+        # Then try contains
+        contains_match = (
+            cls.query.filter(
+                cls.name.ilike(contains),
+                cls.household_id == household_id
+            )
+            .order_by(cls.support.desc(), cls.name)
+            .all()
+        )
+        for r in contains_match:
+            if r not in found:
+                found.append(r)
+                item_count -= 1
+                if item_count <= 0:
+                    return found
+
+        # Finally try one error matches
+        for looking_for in one_error:
             res = (
                 cls.query.filter(
-                    cls.name.ilike(looking_for), cls.household_id == household_id
+                    cls.name.ilike(looking_for),
+                    cls.household_id == household_id
                 )
                 .order_by(cls.support.desc(), cls.name)
                 .all()

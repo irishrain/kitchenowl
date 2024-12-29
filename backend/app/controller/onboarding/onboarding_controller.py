@@ -30,6 +30,6 @@ def onboard(args):
     refreshToken, refreshModel = Token.create_refresh_token(user, device)
 
     # Create first access token
-    accesssToken, _ = Token.create_access_token(user, refreshModel)
+    accessToken, _ = Token.create_access_token(user, refreshModel)
 
-    return jsonify({"access_token": accesssToken, "refresh_token": refreshToken})
+    return jsonify({"access_token": accessToken, "refresh_token": refreshToken})

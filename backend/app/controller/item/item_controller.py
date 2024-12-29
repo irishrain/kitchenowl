@@ -62,10 +62,11 @@ def deleteItemById(id):
 @validate_args(SearchByNameRequest)
 def searchItemByName(args, household_id):
     query, description = description_splitter.split(args["query"])
+    results = Item.search_name(query, household_id)
     return jsonify(
         [
             e.obj_to_dict() | {"description": description}
-            for e in Item.search_name(query, household_id)
+            for e in results
         ]
     )
 
