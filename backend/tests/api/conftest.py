@@ -79,6 +79,8 @@ def onboarded_client(client, admin_username, admin_name, admin_password):
         'password': admin_password
     }
     response = client.post('/api/onboarding', json=onboard_data)
+    data = response.get_json()
+    client.environ_base['HTTP_AUTHORIZATION'] = f'Bearer {data["access_token"]}'
     return client
 
 

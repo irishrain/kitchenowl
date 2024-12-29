@@ -59,9 +59,14 @@ class Tag(db.Model, DbModelMixin, DbModelAuthorizeMixin):
 
     @classmethod
     def find_by_name(cls, household_id: int, name: str) -> Self:
-        return cls.query.filter(
+        # First try to find in the specified household
+        tag = cls.query.filter(
             cls.household_id == household_id, cls.name == name
         ).first()
+        if tag:
+            return tag
+        # If not found, check if it exists in another household
+        return cls.query.filter(cls.name == name).first()
 
     @classmethod
     def find_by_id(cls, id: int) -> Self:

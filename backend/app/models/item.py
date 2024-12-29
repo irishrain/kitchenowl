@@ -152,9 +152,14 @@ class Item(db.Model, DbModelMixin, DbModelAuthorizeMixin):
     @classmethod
     def find_by_name(cls, household_id: int, name: str) -> Self:
         name = name.strip()
-        return cls.query.filter(
+        # First try to find in the specified household
+        item = cls.query.filter(
             cls.household_id == household_id, func.lower(cls.name) == func.lower(name)
         ).first()
+        if item:
+            return item
+        # If not found, check if it exists in another household
+        return cls.query.filter(func.lower(cls.name) == func.lower(name)).first()
 
     @classmethod
     def find_by_default_key(cls, household_id: int, default_key: str) -> Self:
