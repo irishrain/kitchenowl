@@ -25,8 +25,9 @@ class Tag(db.Model, DbModelMixin, DbModelAuthorizeMixin):
         return res
 
     def merge(self, other: Self) -> None:
+        from app.errors import InvalidUsage
         if self.household_id != other.household_id:
-            return
+            raise InvalidUsage("Cannot merge tags from different households")
 
         from app.models import RecipeTags
 
