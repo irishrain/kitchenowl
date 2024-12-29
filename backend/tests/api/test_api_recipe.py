@@ -6,6 +6,8 @@ def test_recipe_creation(user_client_with_household, household_id, recipe_name, 
         'description': recipe_description,
         'yields': recipe_yields,
         'time': recipe_time,
+        'cook_time': 20,
+        'prep_time': 10,
         'items': []
     }
     
@@ -50,6 +52,8 @@ def test_recipe_update(user_client_with_household, recipe_with_items):
         'description': 'Updated description',
         'yields': 6,
         'time': 45,
+        'cook_time': 25,
+        'prep_time': 20,
         'items': []  # Remove all items
     }
     
@@ -91,4 +95,218 @@ def test_recipe_deletion(user_client_with_household, recipe_with_items):
 
     # Verify deletion
     response = user_client_with_household.get(f'/api/recipe/{recipe_id}')
-    assert response.status_code != 200  # Should not be found
+    assert response.status_code == 404  # Should not be found
+
+def test_recipe_creation_invalid_data(user_client_with_household, household_id):
+    """Test recipe creation with invalid data"""
+    # Test missing name
+    recipe_data = {
+        'description': 'Test description',
+        'yields': 4,
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'items': []
+    }
+    response = user_client_with_household.post(
+        f'/api/household/{household_id}/recipe',
+        json=recipe_data
+    )
+    assert response.status_code == 400
+
+    # Test empty name
+    recipe_data = {
+        'name': '',
+        'description': 'Test description',
+        'yields': 4,
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'items': []
+    }
+    response = user_client_with_household.post(
+        f'/api/household/{household_id}/recipe',
+        json=recipe_data
+    )
+    assert response.status_code == 400
+
+    # Test negative yields value
+    recipe_data = {
+        'name': 'Test Recipe',
+        'description': 'Test description',
+        'yields': -1,
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'items': []
+    }
+    response = user_client_with_household.post(
+        f'/api/household/{household_id}/recipe',
+        json=recipe_data
+    )
+    assert response.status_code == 400
+
+    # Test zero yields value (should be allowed)
+    recipe_data = {
+        'name': 'Test Recipe',
+        'description': 'Test description',
+        'yields': 0,
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'items': []
+    }
+    response = user_client_with_household.post(
+        f'/api/household/{household_id}/recipe',
+        json=recipe_data
+    )
+    assert response.status_code == 200
+
+    # Test invalid time value
+    recipe_data = {
+        'name': 'Test Recipe',
+        'description': 'Test description',
+        'yields': 4,
+        'time': -30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'items': []
+    }
+    response = user_client_with_household.post(
+        f'/api/household/{household_id}/recipe',
+        json=recipe_data
+    )
+    assert response.status_code == 400
+
+    # Test recipe without tags (should be allowed)
+    recipe_data = {
+        'name': 'Test Recipe Without Tags',
+        'description': 'Test description',
+        'yields': 4,
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'items': []
+    }
+    response = user_client_with_household.post(
+        f'/api/household/{household_id}/recipe',
+        json=recipe_data
+    )
+    assert response.status_code == 200
+
+    # Test malformed JSON
+    response = user_client_with_household.post(
+        f'/api/household/{household_id}/recipe',
+        data='not a json',
+        content_type='application/json'
+    )
+    assert response.status_code == 400
+
+def test_recipe_invalid_household(user_client_with_household):
+    """Test recipe operations with invalid household"""
+    recipe_data = {
+        'name': 'Test Recipe',
+        'description': 'Test description',
+        'yields': 4,
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'items': []
+    }
+    # Try to create recipe in non-existent household
+    response = user_client_with_household.post(
+        '/api/household/999999/recipe',
+        json=recipe_data
+    )
+    assert response.status_code == 404
+
+    # Try to search recipes in non-existent household
+    response = user_client_with_household.get(
+        '/api/household/999999/recipe/search?query=test'
+    )
+    assert response.status_code == 404
+
+def test_recipe_invalid_items(user_client_with_household, household_id):
+    """Test recipe creation with invalid items"""
+    # Test recipe with invalid item format
+    recipe_data = {
+        'name': 'Test Recipe',
+        'description': 'Test description',
+        'yields': 4,
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'items': [{'invalid_field': 'value'}]
+    }
+    response = user_client_with_household.post(
+        f'/api/household/{household_id}/recipe',
+        json=recipe_data
+    )
+    assert response.status_code == 400
+
+    # Test recipe with empty item name
+    recipe_data = {
+        'name': 'Test Recipe',
+        'description': 'Test description',
+        'yields': 4,
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'items': [{'name': '', 'description': '1 piece'}]
+    }
+    response = user_client_with_household.post(
+        f'/api/household/{household_id}/recipe',
+        json=recipe_data
+    )
+    assert response.status_code == 400
+
+    # Test recipe with empty item description (should be allowed)
+    recipe_data = {
+        'name': 'Test Recipe',
+        'description': 'Test description',
+        'yields': 4,
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'items': [{'name': 'Test Item', 'description': ''}]
+    }
+    response = user_client_with_household.post(
+        f'/api/household/{household_id}/recipe',
+        json=recipe_data
+    )
+    assert response.status_code == 200
+
+def test_recipe_update_invalid_data(user_client_with_household, recipe_with_items):
+    """Test recipe update with invalid data"""
+    recipe_id = recipe_with_items
+
+    # Test empty name
+    updated_data = {
+        'name': '',
+        'description': 'Updated description',
+        'yields': 6,
+        'time': 45,
+        'cook_time': 25,
+        'prep_time': 20,
+        'items': []
+    }
+    response = user_client_with_household.post(
+        f'/api/recipe/{recipe_id}',
+        json=updated_data
+    )
+    assert response.status_code == 400
+
+    # Test invalid recipe ID
+    response = user_client_with_household.post(
+        '/api/recipe/999999',
+        json=updated_data
+    )
+    assert response.status_code == 404
+
+    # Test malformed JSON
+    response = user_client_with_household.post(
+        f'/api/recipe/{recipe_id}',
+        data='not a json',
+        content_type='application/json'
+    )
+    assert response.status_code == 400

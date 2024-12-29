@@ -2,9 +2,10 @@ from flask import request
 
 
 class InvalidUsage(Exception):
-    def __init__(self, message="Invalid usage"):
+    def __init__(self, message="Invalid usage", status_code=400):
         super(InvalidUsage, self).__init__(message)
         self.message = message
+        self.status_code = status_code
 
 
 class UnauthorizedRequest(Exception):

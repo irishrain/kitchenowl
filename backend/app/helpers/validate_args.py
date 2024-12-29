@@ -23,6 +23,8 @@ def validate_args(schema_cls: type[Schema]):
                 arguments = load_fn(request_data)
             except ValidationError as exc:
                 raise InvalidUsage("{}".format(exc))
+            except Exception as e:
+                raise InvalidUsage("Invalid JSON format: {}".format(str(e)))
 
             return func(arguments, *args, **kwargs)
 

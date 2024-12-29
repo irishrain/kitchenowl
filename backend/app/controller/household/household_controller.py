@@ -2,7 +2,7 @@ import gevent
 from app.config import SUPPORTED_LANGUAGES
 from app.helpers import validate_args, authorize_household, RequiredRights
 from flask import jsonify, Blueprint
-from app.errors import NotFoundRequest
+from app.errors import NotFoundRequest, InvalidUsage, ForbiddenRequest
 from flask_jwt_extended import current_user, jwt_required
 from app.models import Household, HouseholdMember, Shoppinglist, User
 from app.service.import_language import importLanguage
@@ -77,16 +77,26 @@ def addHousehold(args):
     return jsonify(household.obj_to_dict())
 
 
-@household.route("/<int:household_id>", methods=["POST"])
+@household.route("/<int:household_id>", methods=["POST", "PUT"])
 @jwt_required()
-@authorize_household(required=RequiredRights.ADMIN)
 @validate_args(UpdateHousehold)
 def updateHousehold(args, household_id):
     household = Household.find_by_id(household_id)
     if not household:
         raise NotFoundRequest()
 
+    # Check if user is admin
+    from app.models import HouseholdMember
+    member = HouseholdMember.find_by_ids(household_id, current_user.id)
+    if not member:
+        raise ForbiddenRequest()
+    if not member.admin:
+        raise ForbiddenRequest("Only household admins can update household settings")
+
+    # Validate fields
     if "name" in args:
+        if not args["name"] or not args["name"].strip():
+            raise InvalidUsage("Household name cannot be empty")
         household.name = args["name"]
     if "photo" in args and args["photo"] != household.photo:
         household.photo = file_has_access_or_download(args["photo"], household.photo)
@@ -104,14 +114,21 @@ def updateHousehold(args, household_id):
     if "view_ordering" in args:
         household.view_ordering = args["view_ordering"]
 
-    household.save()
-    return jsonify(household.obj_to_dict())
+    try:
+        household.save()
+        return jsonify(household.obj_to_dict())
+    except Exception as e:
+        raise InvalidUsage(f"Failed to update household: {str(e)}")
 
 
 @household.route("/<int:household_id>", methods=["DELETE"])
 @jwt_required()
 @authorize_household(required=RequiredRights.ADMIN)
 def deleteHouseholdById(household_id):
+    household = Household.find_by_id(household_id)
+    if not household:
+        raise NotFoundRequest()
+
     hms = HouseholdMember.find_by_household(household_id)
     for hm in hms:
         db.session.delete(hm)
@@ -120,7 +137,7 @@ def deleteHouseholdById(household_id):
     return jsonify({"msg": "DONE"})
 
 
-@household.route("/<int:household_id>/member/<int:user_id>", methods=["PUT"])
+@household.route("/<int:household_id>/member/<int:user_id>", methods=["POST"])
 @jwt_required()
 @authorize_household(required=RequiredRights.ADMIN)
 @validate_args(UpdateHouseholdMember)

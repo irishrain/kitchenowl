@@ -138,6 +138,21 @@ def household_id(user_client_with_household):
     assert "id" in data[0]
     return data[0]["id"]
 
+@pytest.fixture
+def second_household(user_client_with_household):
+    """Create a second household for cross-household testing"""
+    response = user_client_with_household.get('/api/user')
+    assert response.status_code == 200
+    user_id = response.get_json()['id']
+    
+    data = {
+        'name': 'Second Test Household',
+        'member': [user_id]
+    }
+    response = user_client_with_household.post('/api/household', json=data)
+    assert response.status_code == 200
+    return response.get_json()['id']
+
 
 @pytest.fixture
 def shoppinglist_id(user_client_with_household, household_id):
@@ -177,6 +192,9 @@ def recipe_with_items(user_client_with_household, household_id, recipe_name, rec
         'description': recipe_description,
         'yields': recipe_yields,
         'time': recipe_time,
+        'cook_time': 20,
+        'prep_time': 10,
+        'tags': ['main'],
         'items': [{'name': item_name, 'description': '2 pieces'}]
     }
     

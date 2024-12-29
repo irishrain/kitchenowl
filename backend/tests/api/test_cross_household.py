@@ -60,7 +60,12 @@ def test_cross_household_planner_operations(user_client_with_household, househol
     recipe_data = {
         'name': 'Second Household Recipe',
         'description': 'Test Description',
-        'items': [{'name': 'second_item', 'description': '1 piece'}]
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'yields': 4,
+        'items': [{'name': 'second_item', 'description': '1 piece'}],
+        'tags': ['main']
     }
     response = user_client_with_household.post(
         f'/api/household/{second_household_id}/recipe',
@@ -99,6 +104,10 @@ def test_cross_household_recipe_tags(user_client_with_household, household_id):
     recipe_data = {
         'name': 'Test Recipe',
         'description': 'Test Description',
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'yields': 4,
         'items': [{'name': 'first_item', 'description': '1 piece'}],
         'tags': ['first_tag']
     }

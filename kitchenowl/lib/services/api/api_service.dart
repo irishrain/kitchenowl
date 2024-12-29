@@ -213,12 +213,16 @@ class ApiService {
   }) =>
       _handleRequest(
         timeout: timeout,
-        () => _client.post(
-          Uri.parse(baseUrl + url),
-          body: body,
-          headers: headers,
-          encoding: encoding,
-        ),
+        () {
+          final requestHeaders = Map<String, String>.from(headers);
+          requestHeaders['Content-Type'] = 'application/json';
+          return _client.post(
+            Uri.parse(baseUrl + url),
+            body: body,
+            headers: requestHeaders,
+            encoding: encoding,
+          );
+        },
       );
 
   Future<http.Response> postBytes(String url, NamedByteArray array) =>

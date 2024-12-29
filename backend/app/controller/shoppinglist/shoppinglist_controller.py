@@ -376,20 +376,33 @@ def removeShoppinglistItem(args, id: int):
         raise NotFoundRequest()
     shoppinglist.checkAuthorized()
 
+    item_id = args["item_id"]
+    item = Item.find_by_id(item_id)
+    if not item:
+        raise NotFoundRequest()
+
+    # Check if the item exists in the shopping list
+    con = ShoppinglistItems.find_by_ids(id, item_id)
+    if not con:
+        raise NotFoundRequest()
+
+    # Remove the item
     con = removeShoppinglistItemFunc(
         shoppinglist,
-        args["item_id"],
-        args["removed_at"] if "removed_at" in args else None,
+        item_id,
+        None
     )
-    if con:
-        socketio.emit(
-            "shoppinglist_item:remove",
-            {
-                "item": con.obj_to_item_dict(),
-                "shoppinglist": shoppinglist.obj_to_dict(),
-            },
-            to=shoppinglist.household_id,
-        )
+    if not con:
+        raise NotFoundRequest()
+
+    socketio.emit(
+        "shoppinglist_item:remove",
+        {
+            "item": con.obj_to_item_dict(),
+            "shoppinglist": shoppinglist.obj_to_dict(),
+        },
+        to=shoppinglist.household_id,
+    )
 
     return jsonify({"msg": "DONE"})
 

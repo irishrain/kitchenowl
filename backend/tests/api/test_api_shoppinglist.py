@@ -137,6 +137,55 @@ def test_recent_items_household_boundaries(user_client_with_household, household
     assert recent_items[0]['name'] == 'second_household_item'
 
 
+def test_invalid_shoppinglist_operations(user_client_with_household, shoppinglist_id):
+    # Test invalid shopping list ID
+    response = user_client_with_household.get('/api/shoppinglist/999999/items')
+    assert response.status_code == 404
+
+    # Test adding item with invalid JSON
+    response = user_client_with_household.post(
+        f'/api/shoppinglist/{shoppinglist_id}/add-item-by-name',
+        data='invalid json',
+        content_type='application/json'
+    )
+    assert response.status_code == 400
+
+    # Test adding item with missing required fields
+    response = user_client_with_household.post(
+        f'/api/shoppinglist/{shoppinglist_id}/add-item-by-name',
+        json={}
+    )
+    assert response.status_code == 400
+
+    # Test removing item with invalid item ID
+    response = user_client_with_household.delete(
+        f'/api/shoppinglist/{shoppinglist_id}/item',
+        json={"item_id": 999999}
+    )
+    assert response.status_code == 404
+
+def test_shopping_list_item_validation(user_client_with_household, shoppinglist_id):
+    # Test empty item name
+    response = user_client_with_household.post(
+        f'/api/shoppinglist/{shoppinglist_id}/add-item-by-name',
+        json={'name': ''}
+    )
+    assert response.status_code == 400
+
+    # Test very long item name (assuming there's a reasonable limit)
+    response = user_client_with_household.post(
+        f'/api/shoppinglist/{shoppinglist_id}/add-item-by-name',
+        json={'name': 'a' * 1000}  # Very long name
+    )
+    assert response.status_code == 400
+
+    # Test special characters in item name
+    response = user_client_with_household.post(
+        f'/api/shoppinglist/{shoppinglist_id}/add-item-by-name',
+        json={'name': '<script>alert("xss")</script>'}
+    )
+    assert response.status_code == 400
+
 def test_cross_household_operations(user_client_with_household, household_id, shoppinglist_id):
     # Create second household with its own item
     response = user_client_with_household.get('/api/user')
@@ -169,7 +218,12 @@ def test_cross_household_operations(user_client_with_household, household_id, sh
     recipe_data = {
         'name': 'Test Recipe',
         'description': 'Test Description',
-        'items': [{'name': 'second_household_item', 'description': '1 piece'}]
+        'time': 30,
+        'cook_time': 20,
+        'prep_time': 10,
+        'yields': 4,
+        'items': [{'name': 'second_household_item', 'description': '1 piece'}],
+        'tags': ['main']
     }
     response = user_client_with_household.post(
         f'/api/household/{second_household_id}/recipe',

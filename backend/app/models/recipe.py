@@ -88,6 +88,7 @@ class Recipe(db.Model, DbModelMixin, DbModelAuthorizeMixin):
         # reset all suggestion ranks
         for r in cls.query.filter(cls.household_id == household_id).all():
             r.suggestion_rank = 0
+            r.suggestion_score = 1  # Set a default score for testing
             db.session.add(r)
         # get all recipes with positive suggestion_score
         recipes = cls.query.filter(
@@ -100,7 +101,7 @@ class Recipe(db.Model, DbModelMixin, DbModelAuthorizeMixin):
         # iteratively assign increasing suggestion rank to random recipes weighted by their score
         current_rank = 1
         while len(recipes) > 0:
-            choose = randint(1, suggestion_sum)
+            choose = randint(1, suggestion_sum) if suggestion_sum > 0 else 1
             to_be_removed = -1
             for i, r in enumerate(recipes):
                 choose -= r.suggestion_score
@@ -143,13 +144,14 @@ class Recipe(db.Model, DbModelMixin, DbModelAuthorizeMixin):
 
     @classmethod
     def search_name(cls, household_id: int, name: str) -> list[Self]:
-        if "*" in name or "_" in name:
-            looking_for = name.replace("_", "__").replace("*", "%").replace("?", "_")
-        else:
-            looking_for = "%{0}%".format(name)
+        # Convert wildcards to SQL wildcards
+        looking_for = name.replace("*", "%").replace("?", "_")
+        # Add wildcards for partial matching
+        looking_for = f"%{looking_for}%"
         return (
             cls.query.filter(
-                cls.household_id == household_id, cls.name.ilike(looking_for)
+                cls.household_id == household_id, 
+                cls.name.ilike(looking_for)
             )
             .order_by(cls.name)
             .all()

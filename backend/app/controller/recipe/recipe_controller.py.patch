@@ -1,0 +1,28 @@
+diff --git a/backend/app/controller/recipe/recipe_controller.py b/backend/app/controller/recipe/recipe_controller.py
+index 54d90b0..957332b 100644
+--- a/backend/app/controller/recipe/recipe_controller.py
++++ b/backend/app/controller/recipe/recipe_controller.py
+@@ -121,6 +121,14 @@ def addRecipe(args, household_id):
+             # Check if the item exists in the target household
+             item = Item.find_by_name(household_id, recipeItem["name"])
+             
++            # If it doesn't exist in the target household, check if it exists in any other household
++            if not item:
++                other_household_item = Item.query.filter(
++                    func.lower(Item.name) == func.lower(recipeItem["name"].strip()),
++                    Item.household_id != household_id
++                ).first()
++                if other_household_item:
++                    raise InvalidUsage("Cannot add items from different households")
+             
+             con = RecipeItems(
+                 description=recipeItem["description"],
+@@ -158,6 +166,8 @@ def updateRecipe(args, id):  # noqa: C901
+             tag = Tag.find_by_name(household_id, tagName)
+             if not tag:
+                 tag = Tag.create_by_name(household_id, tagName)
++            elif tag.household_id != household_id:
++                raise InvalidUsage("Cannot add tags from different households")
+             
+             con = RecipeTags()
+             # Add all related objects to session

@@ -8,8 +8,8 @@ class GetShoppingLists(Schema):
 
 
 class AddItemByName(Schema):
-    name = fields.String(required=True)
-    description = fields.String()
+    name = fields.String(required=True, validate=lambda a: bool(a and a.strip() and len(a) <= 128 and not any(c in a for c in '<>"\'/')))
+    description = fields.String(allow_none=True, validate=lambda a: a is None or a == "" or bool(a.strip() and len(a) <= 256 and not any(c in a for c in '<>"\'/')))
 
 
 class AddRecipeItems(Schema):
