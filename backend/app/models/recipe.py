@@ -205,6 +205,12 @@ class RecipeItems(db.Model, DbModelMixin):
         ]
         return res
 
+    def save(self) -> Self:
+        from app.errors import InvalidUsage
+        if self.item.household_id != self.recipe.household_id:
+            raise InvalidUsage("Cannot add items from different households")
+        return super().save()
+
     @classmethod
     def find_by_ids(cls, recipe_id: int, item_id: int) -> Self:
         return cls.query.filter(
@@ -228,6 +234,12 @@ class RecipeTags(db.Model, DbModelMixin):
         res["created_at"] = getattr(self, "created_at")
         res["updated_at"] = getattr(self, "updated_at")
         return res
+
+    def save(self) -> Self:
+        from app.errors import InvalidUsage
+        if self.tag.household_id != self.recipe.household_id:
+            raise InvalidUsage("Cannot add tags from different households")
+        return super().save()
 
     @classmethod
     def find_by_ids(cls, recipe_id: int, tag_id: int) -> Self:
