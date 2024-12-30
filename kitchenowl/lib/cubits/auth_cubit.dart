@@ -25,6 +25,7 @@ class AuthCubit extends Cubit<AuthState> {
             .then((value) => value ?? token);
       });
     }
+    _loadForcedOfflineMode();
     setup();
   }
 
@@ -124,7 +125,13 @@ class AuthCubit extends Cubit<AuthState> {
     return null;
   }
 
-  Future<void> refresh() => ApiService.getInstance().refresh();
+  Future<void> refresh() {
+    // Don't refresh if we're in forced offline mode
+    if (_forcedOfflineMode) {
+      return Future.value();
+    }
+    return ApiService.getInstance().refresh();
+  }
 
   Future<void> refreshUser() async {
     if (state is Authenticated) {
@@ -277,10 +284,19 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  Future<void> _loadForcedOfflineMode() async {
+    _forcedOfflineMode = await PreferenceStorage.getInstance().readBool(key: 'forcedOfflineMode') ?? false;
+  }
+
   void setForcedOfflineMode(bool forcedOfflineMode) async {
     _forcedOfflineMode = forcedOfflineMode;
-    updateState(); // force refresh if state stays the same
-    refresh();
+    await PreferenceStorage.getInstance().writeBool(key: 'forcedOfflineMode', value: forcedOfflineMode);
+    // Always update state to reflect the change immediately
+    updateState();
+    if (!forcedOfflineMode) {
+      // When disabling offline mode, also do a full refresh to reconnect
+      refresh();
+    }
   }
 }
 
