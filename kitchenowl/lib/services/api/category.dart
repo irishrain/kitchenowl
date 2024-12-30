@@ -7,8 +7,8 @@ import 'package:kitchenowl/services/api/api_service.dart';
 extension CategoryApi on ApiService {
   static const baseRoute = '/category';
 
-  Future<List<Category>?> getCategories(Household household) async {
-    final res = await get(householdPath(household) + baseRoute);
+  Future<List<Category>?> getCategories(Household household, {bool showAll = false}) async {
+    final res = await get(householdPath(household) + baseRoute + "?show_all=$showAll");
     if (res.statusCode != 200) return null;
 
     return List<Category>.from(jsonDecode(res.body).map(

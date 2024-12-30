@@ -13,7 +13,9 @@ categoryHousehold = Blueprint("category", __name__)
 @jwt_required()
 @authorize_household()
 def getAllCategories(household_id):
-    return jsonify([e.obj_to_dict() for e in Category.all_by_ordering(household_id)])
+    from flask import request
+    show_all = request.args.get('show_all', 'false').lower() == 'true'
+    return jsonify([e.obj_to_dict() for e in Category.all_by_ordering(household_id, show_all)])
 
 
 @category.route("/<int:id>", methods=["GET"])

@@ -318,8 +318,9 @@ class ShoppinglistCubit extends Cubit<ShoppinglistCubitState> {
   }
 
   Future<List<Category>> fetchCategories([bool forceOffline = false]) {
+    final showAll = App.settings.showAllHouseholdLists;
     return TransactionHandler.getInstance().runTransaction(
-      TransactionCategoriesGet(household: household),
+      TransactionCategoriesGet(household: household, showAll: showAll),
       forceOffline: forceOffline,
     );
   }

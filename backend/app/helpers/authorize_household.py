@@ -22,29 +22,39 @@ def authorize_household(required: RequiredRights = RequiredRights.MEMBER):
             if not current_user:
                 raise UnauthorizedRequest()
 
+            # First check if user is a server admin
             if current_user.admin:
-                return func(*args, **kwargs)  # case server admin
-            if (
-                required == RequiredRights.ADMIN_OR_SELF
-                and current_user.id == kwargs["user_id"]
-            ):
-                return func(*args, **kwargs)  # case ressource deals with self
+                return func(*args, **kwargs)
 
+            # Get the user's membership in this household
             member = HouseholdMember.find_by_ids(
                 kwargs["household_id"], current_user.id
             )
-            if required == RequiredRights.MEMBER and member:
-                return func(*args, **kwargs)  # case member
 
-            if (
-                (
-                    required == RequiredRights.ADMIN
-                    or required == RequiredRights.ADMIN_OR_SELF
-                )
-                and member
-                and (member.admin or member.owner)
-            ):
-                return func(*args, **kwargs)  # case admin
+            # Check if user is a member of this household
+            if not member:
+                # Special case: if this is a self-operation and user has ADMIN_OR_SELF rights
+                if (
+                    required == RequiredRights.ADMIN_OR_SELF
+                    and current_user.id == kwargs["user_id"]
+                ):
+                    return func(*args, **kwargs)
+                raise ForbiddenRequest()
+
+            # Now we know the user is a member, check specific rights
+            if required == RequiredRights.MEMBER:
+                return func(*args, **kwargs)
+
+            # For admin operations, check if user is admin/owner
+            if required == RequiredRights.ADMIN and (member.admin or member.owner):
+                return func(*args, **kwargs)
+
+            # For ADMIN_OR_SELF operations
+            if required == RequiredRights.ADMIN_OR_SELF:
+                if member.admin or member.owner:
+                    return func(*args, **kwargs)
+                if current_user.id == kwargs["user_id"]:
+                    return func(*args, **kwargs)
 
             raise ForbiddenRequest()
 

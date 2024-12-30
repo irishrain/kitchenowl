@@ -23,15 +23,47 @@ class Category(db.Model, DbModelMixin, DbModelAuthorizeMixin):
     household: Mapped["Household"] = db.relationship("Household", uselist=False)
     items: Mapped[List["Item"]] = db.relationship("Item", back_populates="category")
 
-    def obj_to_full_dict(self) -> dict:
+    def obj_to_dict(self) -> dict:
         res = super().obj_to_dict()
+        res["household_name"] = self.household.name if self.household else None
+        res["household_id"] = self.household_id
         return res
 
+    def obj_to_full_dict(self) -> dict:
+        return self.obj_to_dict()
+
     @classmethod
-    def all_by_ordering(cls, household_id: int):
+    def all_by_ordering(cls, household_id: int, show_all: bool = False):
+        from app.models import ShoppinglistItems, Shoppinglist, Item, HouseholdMember
+        from flask_jwt_extended import current_user
+
+        # If not showing all, only return categories from current household
+        if not show_all:
+            return (
+                cls.query
+                .filter(cls.household_id == household_id)
+                .order_by(cls.ordering, cls.name)
+                .all()
+            )
+
+        # Get all shopping lists accessible to the current user
+        accessible_lists = Shoppinglist.all_from_user_households(current_user.id)
+        accessible_household_ids = [sl.household_id for sl in accessible_lists]
+
+        # Get categories from all accessible households
+        # Use case statement to order by household_id (current household first)
+        from sqlalchemy import case
         return (
-            cls.query.filter(cls.household_id == household_id)
-            .order_by(cls.ordering, cls.name)
+            cls.query
+            .filter(cls.household_id.in_(accessible_household_ids))
+            .order_by(
+                case(
+                    (cls.household_id == household_id, 0),
+                    else_=1
+                ),
+                cls.ordering,
+                cls.name
+            )
             .all()
         )
 

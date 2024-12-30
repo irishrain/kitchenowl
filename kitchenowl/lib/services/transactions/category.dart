@@ -7,7 +7,9 @@ import 'package:kitchenowl/services/transaction.dart';
 class TransactionCategoriesGet extends Transaction<List<Category>> {
   final Household household;
 
-  TransactionCategoriesGet({required this.household, DateTime? timestamp})
+  final bool showAll;
+
+  TransactionCategoriesGet({required this.household, this.showAll = false, DateTime? timestamp})
       : super.internal(timestamp ?? DateTime.now(), "TransactionCategoriesGet");
 
   @override
@@ -17,7 +19,7 @@ class TransactionCategoriesGet extends Transaction<List<Category>> {
 
   @override
   Future<List<Category>?> runOnline() async {
-    final categories = await ApiService.getInstance().getCategories(household);
+    final categories = await ApiService.getInstance().getCategories(household, showAll: showAll);
     if (categories != null) {
       MemStorage.getInstance().writeCategories(household, categories);
     }

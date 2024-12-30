@@ -190,6 +190,30 @@ def recipe_with_items(user_client_with_household, household_id, recipe_name, rec
     return recipe['id']
 
 @pytest.fixture
+def second_user_client(admin_client):
+    """Create a second user for testing cross-household scenarios"""
+    # Create second user
+    data = {
+        'username': "testuser2",
+        'name': "Test User 2",
+        'password': "testpass2"
+    }
+    response = admin_client.post('/api/user/new', json=data)
+    assert response.status_code == 200
+    
+    # Get token for second user
+    data = {
+        'username': "testuser2",
+        'password': "testpass2"
+    }
+    client = admin_client.application.test_client()  # Create new client
+    response = client.post('/api/auth', json=data)
+    assert response.status_code == 200
+    data = response.get_json()
+    client.environ_base['HTTP_AUTHORIZATION'] = f'Bearer {data["access_token"]}'
+    return client
+
+@pytest.fixture
 def planned_recipe(user_client_with_household, household_id, recipe_with_items):
     """Fixture that creates a meal plan with the test recipe"""
     plan_data = {

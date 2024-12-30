@@ -52,22 +52,26 @@ def addHousehold(args):
         household.view_ordering = args["view_ordering"]
     household.save()
 
+    # Always add creator as owner and admin
     member = HouseholdMember()
     member.household_id = household.id
     member.user_id = current_user.id
     member.owner = True
+    member.admin = True
     member.save()
 
-    if "member" in args:
-        for uid in args["member"]:
-            if uid == current_user.id:
-                continue
-            if not User.find_by_id(uid):
-                continue
-            member = HouseholdMember()
-            member.household_id = household.id
-            member.user_id = uid
-            member.save()
+    # Add other members from the list
+    members_to_add = set(args.get("member", []))
+    members_to_add.discard(current_user.id)  # Remove creator if present in member list
+    
+    # Add other members
+    for uid in members_to_add:
+        if not User.find_by_id(uid):
+            continue
+        member = HouseholdMember()
+        member.household_id = household.id
+        member.user_id = uid
+        member.save()
 
     Shoppinglist(name="Default", household_id=household.id).save()
 
