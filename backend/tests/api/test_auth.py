@@ -185,3 +185,92 @@ def test_token_refresh_race_condition(user_client, username, password):
     # Original refresh token should be rejected
     response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {refresh_token}"})
     assert response.status_code == 401  # Should be rejected
+
+def test_complex_token_chain(user_client, username, password):
+    """Test complex token chain with multiple parallel unused refresh tokens.
+    
+    Chain state:
+    RT1 (Used) -> AT1 (Unused)
+                  RT2 (Used) -> AT2 (Used)
+                               RT3 (Unused) -> AT3 (Unused)
+                               RT4 (Unused) -> AT4 (Unused)
+                               RT5 (Unused) -> AT5 (Unused)
+    """
+    # Initial login to get RT1
+    response = user_client.post("/api/auth", json={"username": username, "password": password, "device": "test"})
+    assert response.status_code == 200
+    data = response.get_json()
+    at1 = data["access_token"]
+    rt1 = data["refresh_token"]
+
+    # Use RT1 to get RT2 (don't use AT1)
+    response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {rt1}"})
+    assert response.status_code == 200
+    data = response.get_json()
+    at2 = data["access_token"]
+    rt2 = data["refresh_token"]
+
+    # Use RT2 to create three parallel chains (RT3, RT4, RT5)
+    # First chain (RT3)
+    response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {rt2}"})
+    assert response.status_code == 200
+    data = response.get_json()
+    at3 = data["access_token"]
+    rt3 = data["refresh_token"]
+
+    # Second chain (RT4)
+    response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {rt2}"})
+    assert response.status_code == 200
+    data = response.get_json()
+    at4 = data["access_token"]
+    rt4 = data["refresh_token"]
+
+    # Third chain (RT5)
+    response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {rt2}"})
+    assert response.status_code == 200
+    data = response.get_json()
+    at5 = data["access_token"]
+    rt5 = data["refresh_token"]
+
+    # Use AT2 to make it the active chain
+    response = user_client.get("/api/user", headers={"Authorization": f"Bearer {at2}"})
+    assert response.status_code == 200
+
+    # Verify unused tokens from parallel chains are rejected
+    # AT1 should be rejected (unused token from used RT1)
+    response = user_client.get("/api/user", headers={"Authorization": f"Bearer {at1}"})
+    assert response.status_code == 401
+
+    # RT3/AT3 chain should be rejected (unused parallel chain)
+    response = user_client.get("/api/user", headers={"Authorization": f"Bearer {at3}"})
+    assert response.status_code == 401
+    response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {rt3}"})
+    assert response.status_code == 401
+
+    # RT4/AT4 chain should be rejected (unused parallel chain)
+    response = user_client.get("/api/user", headers={"Authorization": f"Bearer {at4}"})
+    assert response.status_code == 401
+    response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {rt4}"})
+    assert response.status_code == 401
+
+    # RT5/AT5 chain should be rejected (unused parallel chain)
+    response = user_client.get("/api/user", headers={"Authorization": f"Bearer {at5}"})
+    assert response.status_code == 401
+    response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {rt5}"})
+    assert response.status_code == 401
+
+    # Original RT1 should be rejected
+    response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {rt1}"})
+    assert response.status_code == 401
+
+    # Try to use one of the parallel chain tokens (RT3), which should trigger breach detection
+    response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {rt3}"})
+    assert response.status_code == 401
+
+    # AT2 should now be rejected as the use of RT3 indicates a potential breach
+    response = user_client.get("/api/user", headers={"Authorization": f"Bearer {at2}"})
+    assert response.status_code == 401
+
+    # RT2 should be rejected (part of the compromised chain)
+    response = user_client.get("/api/auth/refresh", headers={"Authorization": f"Bearer {rt2}"})
+    assert response.status_code == 401
