@@ -130,7 +130,6 @@ class Token(db.Model, DbModelMixin):
     def create_refresh_token(
         cls, user: User, device: str | None = None, oldRefreshToken: Self | None = None
     ) -> Tuple[str, Self]:
-
         assert device or oldRefreshToken
         if oldRefreshToken and oldRefreshToken.type != "refresh":
             oldRefreshToken.delete_token_familiy()
@@ -142,7 +141,6 @@ class Token(db.Model, DbModelMixin):
 
         # Check if this refresh token has already been used to create another refresh token
         if oldRefreshToken and oldRefreshToken.has_created_refresh_token():
-            # Check if the newer tokens have been used
             newer_token = db.session.query(Token).filter(
                 Token.refresh_token_id == oldRefreshToken.id,
                 Token.type == "refresh"
@@ -164,17 +162,12 @@ class Token(db.Model, DbModelMixin):
                         )
                     )
                 else:
-                    # The newer tokens haven't been used, we can invalidate them and issue new ones
-                    for token in (
-                        db.session.query(Token).filter(
-                            Token.refresh_token_id == oldRefreshToken.id
-                        ).all()
-                    ):
-                        if token.type == "refresh":
-                            token.type = "invalidated_refresh"
-                        else:
-                            # Delete access tokens
-                            db.session.delete(token)
+                    # Only invalidate the unused parallel refresh token chain
+                    for token in db.session.query(Token).filter(
+                        Token.refresh_token_id == newer_token.id
+                    ).all():
+                        db.session.delete(token)
+                    newer_token.type = "invalidated_refresh"
 
         refreshToken = create_refresh_token(identity=user)
         model = cls()
