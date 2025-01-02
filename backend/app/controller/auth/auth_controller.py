@@ -32,31 +32,6 @@ def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
     jti = jwt_payload["jti"]
     token = Token.find_by_jti(jti)
     if token is not None:
-        # Check for invalidated refresh tokens first
-        if token.type == "invalidated_refresh":
-            # Delete any remaining tokens in the family
-            token.delete_token_familiy()
-            return True
-            
-        # Check if this token's chain has been superseded
-        if token.type == "access":
-            if token.refresh_token:  # This token has a parent
-                # Check if parent is not a valid refresh token
-                if token.refresh_token.type != "refresh":
-                    token.refresh_token.delete_token_familiy()
-                    return True
-                # Check if there are any newer tokens that have been used
-                    newer_used = db.session.query(Token).filter(
-                        Token.refresh_token_id == token.refresh_token.id,
-                        Token.last_used_at != None,
-                        db.or_(
-                            Token.type == "refresh",
-                            db.and_(Token.type == "access", Token.id != token.id)
-                        )
-                    ).first()
-                    if newer_used:
-                        return True
-
         if token.last_used_at is None:
             # First use of this token
             if token.type == "access":
